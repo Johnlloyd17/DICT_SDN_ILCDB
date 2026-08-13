@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fluid base size that reaches a ~140% zoom look (22.4px) on large
+   desktops, stays at 16px below 1024px, and interpolates in between.
+   Because ALL Tailwind spacing/text/max-widths are rem-based, the whole
+   layout scales together like browser zoom — without breaking smaller
+   screens (the .content-wrap cap below prevents any horizontal overflow). */
+html {
+    font-size: clamp(16px, calc(8.686px + 0.7143vw), 22.4px);
+}
+
+/* Fluid content wrapper: centered, up to 80rem, but never wider than the
+   viewport so the layout never breaks or scrolls horizontally. */
+.content-wrap {
+    width: 100%;
+    max-width: 80rem;
+    max-width: min(80rem, calc(100vw - 1.5rem));
+    margin-inline: auto;
+}
+
+[x-cloak] { display: none !important; }
+
+/* Sticky anchor columns for wide data tables (Excel-style pinning).
+   Position/left/z-index come inline since offsets differ per column;
+   these classes only supply the opaque backgrounds so scrolled cells
+   never show through underneath. */
+.sticky-col-head {
+    background-color: #9DC3E6;
+    background-clip: padding-box;
+}
+
+.sticky-col {
+    background-color: #ffffff;
+    background-clip: padding-box;
+}
+
+.sticky-col.sel {
+    background-color: #ecfeff;
+}
+
+.row-hover tbody tr:hover td {
+    background-color: #cffafe;
+}
+
+/* Modern scrollbars (WebKit + Firefox). Invisible track, padded rounded
+   thumb, DICT-navy hover — matches the brand. Applies to every scrollable
+   container and the page itself so scroll-y areas look consistent. */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: #003366;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: content-box;
+}
+
+*::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Kept for explicit opt-in on specific containers; matches global style. */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #003366;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+    border-color: #e2e8f0;
+}
+
+.fc .fc-toolbar-title {
+    font-size: 0.95rem !important;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.fc .fc-button-primary {
+    background-color: #003366 !important;
+    border-color: #003366 !important;
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+    text-transform: capitalize;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #printable-certificate,
+    #printable-certificate * {
+        visibility: visible;
+    }
+
+    #printable-certificate {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        box-shadow: none !important;
+        border: none !important;
+        background-color: white !important;
+        z-index: 999999;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    @page {
+        size: landscape;
+        margin: 0;
+    }
+}

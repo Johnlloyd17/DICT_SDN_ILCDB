@@ -1,0 +1,178 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class FundingRecordSeeder extends Seeder
+{
+    public function run(): void
+    {
+        DB::table('funding_records')->insert([
+            // DWIA-TMD (3 records)
+            [
+                'voucher_ref' => 'DV-2026-01-012',
+                'project' => 'DWIA-TMD',
+                'description' => 'Cybersecurity Essentials Workshop Training Materials & Honoraria',
+                'expense_category' => 'MOOE - Training & Seminars',
+                'allocated' => 500000,
+                'obligated' => 450000,
+                'disbursed' => 420000,
+                'transaction_date' => '2026-01-18',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-02-045',
+                'project' => 'DWIA-TMD',
+                'description' => 'Basic Computer Literacy Program LGU Mainit Venue & Food Logistics',
+                'expense_category' => 'Supplies & Logistics',
+                'allocated' => 400000,
+                'obligated' => 350000,
+                'disbursed' => 310000,
+                'transaction_date' => '2026-02-12',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-03-088',
+                'project' => 'DWIA-TMD',
+                'description' => 'Full-Stack Web Dev Bootcamp Advanced Mod 2 Consultancy',
+                'expense_category' => 'Honorarium & Consultancy',
+                'allocated' => 900000,
+                'obligated' => 650000,
+                'disbursed' => 520000,
+                'transaction_date' => '2026-03-05',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            // DTC HUB (3 records)
+            [
+                'voucher_ref' => 'DV-2026-01-029',
+                'project' => 'DTC HUB',
+                'description' => 'Surigao City Main Hub Fiber Broadband Internet Annual Subscription',
+                'expense_category' => 'MOOE - Training & Seminars',
+                'allocated' => 350000,
+                'obligated' => 350000,
+                'disbursed' => 300000,
+                'transaction_date' => '2026-01-25',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-02-061',
+                'project' => 'DTC HUB',
+                'description' => 'Claver Digital Hub Workstations Memory & Peripherals Upgrade',
+                'expense_category' => 'Capital Outlay - Equipment',
+                'allocated' => 450000,
+                'obligated' => 380000,
+                'disbursed' => 330000,
+                'transaction_date' => '2026-02-20',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-03-102',
+                'project' => 'DTC HUB',
+                'description' => 'Siargao Tech Hub Dapa Solar Backup Generator Installation',
+                'expense_category' => 'Capital Outlay - Equipment',
+                'allocated' => 400000,
+                'obligated' => 250000,
+                'disbursed' => 220000,
+                'transaction_date' => '2026-03-14',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            // SPARK (3 records)
+            [
+                'voucher_ref' => 'DV-2026-01-033',
+                'project' => 'SPARK',
+                'description' => 'Freelance Virtual Assistance Bootcamp Specialist Coaches Fee',
+                'expense_category' => 'Honorarium & Consultancy',
+                'allocated' => 600000,
+                'obligated' => 500000,
+                'disbursed' => 480000,
+                'transaction_date' => '2026-01-30',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-02-074',
+                'project' => 'SPARK',
+                'description' => 'SEO & Digital Marketing Masterclass Starter Kit Seed Support',
+                'expense_category' => 'MOOE - Training & Seminars',
+                'allocated' => 500000,
+                'obligated' => 420000,
+                'disbursed' => 380000,
+                'transaction_date' => '2026-02-28',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-03-115',
+                'project' => 'SPARK',
+                'description' => 'Freelancer Mentorship Program Platform Licenses Procurement',
+                'expense_category' => 'Supplies & Logistics',
+                'allocated' => 400000,
+                'obligated' => 280000,
+                'disbursed' => 240000,
+                'transaction_date' => '2026-03-22',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            // PROJECT CLICK (3 records)
+            [
+                'voucher_ref' => 'DV-2026-01-005',
+                'project' => 'PROJECT CLICK',
+                'description' => 'Batch 1 Chromebook Units Procurement for Public High Schools',
+                'expense_category' => 'Capital Outlay - Equipment',
+                'allocated' => 1000000,
+                'obligated' => 950000,
+                'disbursed' => 880000,
+                'transaction_date' => '2026-01-10',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-02-052',
+                'project' => 'PROJECT CLICK',
+                'description' => 'Siargao Island Schools Educational Tablets Logistics & Turnover',
+                'expense_category' => 'Supplies & Logistics',
+                'allocated' => 600000,
+                'obligated' => 550000,
+                'disbursed' => 490000,
+                'transaction_date' => '2026-02-15',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'voucher_ref' => 'DV-2026-03-094',
+                'project' => 'PROJECT CLICK',
+                'description' => 'Refurbished Laptop Distribution for OSY & LGU Tech Centers',
+                'expense_category' => 'Capital Outlay - Equipment',
+                'allocated' => 400000,
+                'obligated' => 350000,
+                'disbursed' => 280000,
+                'transaction_date' => '2026-03-10',
+                'status' => 'Disbursed',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
+}
