@@ -76,14 +76,13 @@
         </div>
 
         {{-- ==================== ADD DTC VISITOR MODAL ==================== --}}
-        <div x-data="{ show: false }" x-on:open-modal-dtc.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
+        <div x-data="{ show: false, submitting: false, async submitForm(e) { this.submitting = true; const fd = new FormData(e.target); try { const res = await fetch('{{ route('dtc.visitors.store') }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }); if (res.ok) { this.show = false; window.location.reload(); } else { const d = await res.json().catch(() => ({})); alert(d.message || Object.values(d.errors || {}).flat().join('\n') || 'Error saving'); } } catch(err) { console.error(err); alert('Network error'); } this.submitting = false; } }" x-on:open-modal-dtc.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
             <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="w-full max-w-lg overflow-x-hidden overflow-y-auto bg-white border shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] custom-scrollbar border-slate-200">
                 <div class="flex items-center justify-between px-6 py-4 text-white bg-gradient-to-r from-cyan-900 to-dict-blue">
                     <h3 class="flex items-center gap-2 font-bold"><i class="fa-solid fa-shoe-prints text-cyan-400"></i> Log DTC Visitor / User Session</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form action="{{ route('dtc.visitors.store') }}" method="POST" class="p-6 space-y-4 text-xs" x-data="{ services: ['Free High-Speed Internet'] }">
-                    @csrf
+                <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs" x-data="{ services: ['Free High-Speed Internet'] }">
                     <div>
                         <label class="block mb-1 font-semibold text-slate-700">Visitor Full Name <span class="text-red-500">*</span></label>
                         <input type="text" name="visitor_name" required placeholder="e.g. Maria Clara Santos" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
@@ -136,21 +135,23 @@
                     </div>
                     <div class="flex justify-end gap-3 pt-2">
                         <button type="button" x-on:click="show = false" class="px-4 py-2 font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500"><i class="mr-1 fa-solid fa-check"></i> Record Visitor Session</button>
+                        <button type="submit" :disabled="submitting" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
+                            <span x-show="!submitting"><i class="mr-1 fa-solid fa-check"></i> Record Visitor Session</span>
+                            <span x-show="submitting"><i class="mr-1 fa-solid fa-spinner fa-spin"></i> Saving...</span>
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
         {{-- ==================== EDIT DTC VISITOR MODAL ==================== --}}
-        <div x-data="{ show: false, visitor: {} }" x-on:edit-visitor.window="show = true; visitor = $event.detail.visitor" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
+        <div x-data="{ show: false, visitor: {}, submitting: false, async submitForm(e) { this.submitting = true; const fd = new FormData(e.target); fd.append('_method', 'PUT'); try { const res = await fetch('{{ url('dtc/visitors') }}/' + this.visitor.id, { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }); if (res.ok) { this.show = false; window.location.reload(); } else { const d = await res.json().catch(() => ({})); alert(d.message || Object.values(d.errors || {}).flat().join('\n') || 'Error updating'); } } catch(err) { console.error(err); alert('Network error'); } this.submitting = false; } }" x-on:edit-visitor.window="show = true; visitor = $event.detail.visitor" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
             <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="w-full max-w-lg overflow-x-hidden overflow-y-auto bg-white border shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] custom-scrollbar border-slate-200">
                 <div class="flex items-center justify-between px-6 py-4 text-white bg-gradient-to-r from-cyan-900 to-dict-blue">
                     <h3 class="flex items-center gap-2 font-bold"><i class="fa-solid fa-pen text-cyan-400"></i> Edit Visitor Log</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form method="POST" class="p-6 space-y-4 text-xs" :action="'{{ url('dtc/visitors') }}/' + (visitor?.id || '')">
-                    @csrf @method('PUT')
+                <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs">
                     <div>
                         <label class="block mb-1 font-semibold text-slate-700">Visitor Full Name <span class="text-red-500">*</span></label>
                         <input type="text" name="visitor_name" required x-model="visitor.visitor_name" placeholder="e.g. Maria Clara Santos" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
@@ -203,21 +204,23 @@
                     </div>
                     <div class="flex justify-end gap-3 pt-2">
                         <button type="button" x-on:click="show = false" class="px-4 py-2 font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500"><i class="mr-1 fa-solid fa-save"></i> Update Visitor</button>
+                        <button type="submit" :disabled="submitting" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
+                            <span x-show="!submitting"><i class="mr-1 fa-solid fa-save"></i> Update Visitor</span>
+                            <span x-show="submitting"><i class="mr-1 fa-solid fa-spinner fa-spin"></i> Saving...</span>
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
         {{-- ==================== ADD CENTER MODAL ==================== --}}
-        <div x-data="{ show: false }" x-on:open-add-center.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
+        <div x-data="{ show: false, submitting: false, async submitForm(e) { this.submitting = true; const fd = new FormData(e.target); try { const res = await fetch('{{ route('dtc.centers.store') }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }); if (res.ok) { this.show = false; window.location.reload(); } else { const d = await res.json().catch(() => ({})); alert(d.message || Object.values(d.errors || {}).flat().join('\n') || 'Error saving'); } } catch(err) { console.error(err); alert('Network error'); } this.submitting = false; } }" x-on:open-add-center.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
             <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="w-full max-w-2xl overflow-x-hidden overflow-y-auto bg-white border shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] custom-scrollbar border-slate-200">
                 <div class="flex items-center justify-between px-6 py-4 text-white bg-gradient-to-r from-cyan-900 to-dict-blue">
                     <h3 class="flex items-center gap-2 font-bold"><i class="fa-solid fa-plus text-cyan-400"></i> Add DTC Center</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form action="{{ route('dtc.centers.store') }}" method="POST" class="flex flex-col" style="max-height: 80vh;">
-                    @csrf
+                <form x-on:submit.prevent="submitForm($event)" class="flex flex-col" style="max-height: 80vh;">
                     <div class="flex-1 p-6 space-y-4 overflow-y-auto text-xs">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="col-span-2">
@@ -319,21 +322,23 @@
                     </div>
                     <div class="flex justify-end gap-3 px-6 pt-4 pb-6 bg-white border-t border-slate-200">
                         <button type="button" x-on:click="show = false" class="px-4 py-2 font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500"><i class="mr-1 fa-solid fa-check"></i> Add Center</button>
+                        <button type="submit" :disabled="submitting" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
+                            <span x-show="!submitting"><i class="mr-1 fa-solid fa-check"></i> Add Center</span>
+                            <span x-show="submitting"><i class="mr-1 fa-solid fa-spinner fa-spin"></i> Saving...</span>
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
         {{-- ==================== IMPORT DTC VISITOR LOGS MODAL ==================== --}}
-        <div x-data="{ show: false }" x-on:open-import-visitors.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
+        <div x-data="{ show: false, submitting: false, async submitForm(e) { this.submitting = true; const fd = new FormData(e.target); try { const res = await fetch('{{ route('dtc.visitors.import') }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }); if (res.ok) { this.show = false; window.location.reload(); } else { const d = await res.json().catch(() => ({})); alert(d.message || 'Import failed'); } } catch(err) { console.error(err); alert('Network error'); } this.submitting = false; } }" x-on:open-import-visitors.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
             <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="w-full max-w-lg overflow-x-hidden overflow-y-auto bg-white border shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] custom-scrollbar border-slate-200">
                 <div class="flex items-center justify-between px-6 py-4 text-white bg-gradient-to-r from-blue-900 to-dict-blue">
                     <h3 class="flex items-center gap-2 font-bold"><i class="text-blue-400 fa-solid fa-upload"></i> Import DTC Visitor Logs</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form action="{{ route('dtc.visitors.import') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-4 text-xs">
-                    @csrf
+                <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs">
                     <div class="p-4 text-blue-800 border border-blue-200 rounded-lg bg-blue-50">
                         <p class="mb-1 font-semibold">Accepted formats: <strong>CSV, XLSX</strong></p>
                         <p class="text-blue-600">Download the template first to ensure correct column headers. Required columns: <strong>Visitor Name</strong>, <strong>Age</strong>, <strong>Demographic Sector</strong>, <strong>DTC Hub</strong>, <strong>Session Duration</strong>, and <strong>Visit Date</strong>.</p>
@@ -347,21 +352,23 @@
                     </div>
                     <div class="flex justify-end gap-3 pt-2">
                         <button type="button" x-on:click="show = false" class="px-4 py-2 font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500"><i class="mr-1 fa-solid fa-upload"></i> Import</button>
+                        <button type="submit" :disabled="submitting" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
+                            <span x-show="!submitting"><i class="mr-1 fa-solid fa-upload"></i> Import</span>
+                            <span x-show="submitting"><i class="mr-1 fa-solid fa-spinner fa-spin"></i> Importing...</span>
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
-        {{-- ==================== IMPORT MODAL ==================== --}}
-        <div x-data="{ show: false }" x-on:open-import-center.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
+        {{-- ==================== IMPORT CENTER MODAL ==================== --}}
+        <div x-data="{ show: false, submitting: false, async submitForm(e) { this.submitting = true; const fd = new FormData(e.target); try { const res = await fetch('{{ route('dtc.centers.import') }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }); if (res.ok) { this.show = false; window.location.reload(); } else { const d = await res.json().catch(() => ({})); alert(d.message || 'Import failed'); } } catch(err) { console.error(err); alert('Network error'); } this.submitting = false; } }" x-on:open-import-center.window="show = true" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
             <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="w-full max-w-lg overflow-x-hidden overflow-y-auto bg-white border shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] custom-scrollbar border-slate-200">
                 <div class="flex items-center justify-between px-6 py-4 text-white bg-gradient-to-r from-blue-900 to-dict-blue">
                     <h3 class="flex items-center gap-2 font-bold"><i class="text-blue-400 fa-solid fa-upload"></i> Import Centers</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form action="{{ route('dtc.centers.import') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-4 text-xs">
-                    @csrf
+                <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs">
                     <div class="p-4 text-blue-800 border border-blue-200 rounded-lg bg-blue-50">
                         <p class="mb-1 font-semibold">Accepted formats: <strong>CSV, XLSX</strong></p>
                         <p class="text-blue-600">Download the template first to ensure correct column headers. Required columns: <strong>Municipality/City</strong> and <strong>Center Name</strong>.</p>
@@ -372,21 +379,23 @@
                     </div>
                     <div class="flex justify-end gap-3 pt-2">
                         <button type="button" x-on:click="show = false" class="px-4 py-2 font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500"><i class="mr-1 fa-solid fa-upload"></i> Import</button>
+                        <button type="submit" :disabled="submitting" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
+                            <span x-show="!submitting"><i class="mr-1 fa-solid fa-upload"></i> Import</span>
+                            <span x-show="submitting"><i class="mr-1 fa-solid fa-spinner fa-spin"></i> Importing...</span>
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
 
         {{-- ==================== EDIT CENTER MODAL ==================== --}}
-        <div x-data="{ show: false, center: {} }" x-on:edit-center.window="show = true; center = $event.detail.center" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
+        <div x-data="{ show: false, center: {}, submitting: false, async submitForm(e) { this.submitting = true; const fd = new FormData(e.target); fd.append('_method', 'PUT'); try { const res = await fetch('{{ url('dtc/centers') }}/' + this.center.id, { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }); if (res.ok) { this.show = false; window.location.reload(); } else { const d = await res.json().catch(() => ({})); alert(d.message || Object.values(d.errors || {}).flat().join('\n') || 'Error updating'); } } catch(err) { console.error(err); alert('Network error'); } this.submitting = false; } }" x-on:edit-center.window="show = true; center = $event.detail.center" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 z-[9999] flex items-end justify-center p-0 bg-slate-900/80 backdrop-blur-sm sm:items-center sm:p-4">
             <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="w-full max-w-2xl overflow-x-hidden overflow-y-auto bg-white border shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] custom-scrollbar border-slate-200">
                 <div class="flex items-center justify-between px-6 py-4 text-white bg-gradient-to-r from-cyan-900 to-dict-blue">
                     <h3 class="flex items-center gap-2 font-bold"><i class="fa-solid fa-pen text-cyan-400"></i> Edit Center</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form method="POST" class="flex flex-col" :action="'{{ url('dtc/centers') }}/' + (center?.id || '')" style="max-height: 80vh;">
-                    @csrf @method('PUT')
+                <form x-on:submit.prevent="submitForm($event)" class="flex flex-col" style="max-height: 80vh;">
                     <div class="flex-1 p-6 space-y-4 overflow-y-auto text-xs">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="col-span-2">
@@ -488,7 +497,10 @@
                     </div>
                     <div class="flex justify-end gap-3 px-6 pt-4 pb-6 bg-white border-t border-slate-200">
                         <button type="button" x-on:click="show = false" class="px-4 py-2 font-semibold rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                        <button type="submit" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500"><i class="mr-1 fa-solid fa-save"></i> Update Center</button>
+                        <button type="submit" :disabled="submitting" class="px-4 py-2 font-bold text-white rounded-lg shadow bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
+                            <span x-show="!submitting"><i class="mr-1 fa-solid fa-save"></i> Update Center</span>
+                            <span x-show="submitting"><i class="mr-1 fa-solid fa-spinner fa-spin"></i> Saving...</span>
+                        </button>
                     </div>
                 </form>
             </div>

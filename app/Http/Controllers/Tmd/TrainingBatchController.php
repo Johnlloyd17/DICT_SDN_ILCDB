@@ -21,7 +21,7 @@ class TrainingBatchController extends Controller
             'status' => 'required|in:Upcoming,Ongoing,Completed',
         ]);
 
-        TrainingBatch::create([
+        $batch = TrainingBatch::create([
             'batch_code' => $this->nextBatchCode(),
             'course_title' => $request->course_title,
             'venue' => $request->venue,
@@ -34,6 +34,9 @@ class TrainingBatchController extends Controller
             'status' => $request->status,
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['batch' => $batch], 201);
+        }
         return redirect()->route('tmd.participants.index')->withFragment('tracker')
             ->with('success', 'Training batch added successfully.');
     }

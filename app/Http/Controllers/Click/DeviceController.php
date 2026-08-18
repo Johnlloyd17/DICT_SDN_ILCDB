@@ -64,11 +64,14 @@ class DeviceController extends Controller
             'status' => 'required|in:Turned Over,Pending,In Transit',
         ]);
 
-        ClickDevice::create($request->only([
+        $device = ClickDevice::create($request->only([
             'batch_id', 'donation_date', 'device_type', 'quantity',
             'beneficiary', 'municipality', 'status',
         ]));
 
+        if ($request->wantsJson()) {
+            return response()->json(['device' => $device], 201);
+        }
         return redirect()->route('click.devices.index')->with('success', 'Device donation logged successfully.');
     }
 
@@ -89,12 +92,19 @@ class DeviceController extends Controller
             'beneficiary', 'municipality', 'status',
         ]));
 
+        if ($request->wantsJson()) {
+            return response()->json(['device' => $device->fresh()]);
+        }
         return redirect()->route('click.devices.index')->with('success', 'Device record updated.');
     }
 
     public function destroy(ClickDevice $device)
     {
         $device->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Device record removed.']);
+        }
         return redirect()->route('click.devices.index')->with('success', 'Device record removed.');
     }
 }

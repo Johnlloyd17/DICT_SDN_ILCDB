@@ -178,30 +178,35 @@
     </div>
 
     {{-- FINANCIAL LEDGER TABLE --}}
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    @php $seedRecords = $records->getCollection()->values(); @endphp
+    <div x-data="fundingCrud(@json($seedRecords))" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        {{-- FLASH NOTICE --}}
+        <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2 mb-4"
+             :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+            <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+            <span x-text="notice"></span>
+        </div>
+
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
             <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                 <i class="fa-solid fa-ledger text-purple-700"></i> Financial Ledger - Disbursement Accountability
             </h3>
-            <form method="GET" class="flex items-center gap-2 flex-wrap">
-                <select name="project" class="text-xs p-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500">
-                    <option value="ALL">All Projects</option>
-                    <option value="DWIA-TMD" {{ request('project') === 'DWIA-TMD' ? 'selected' : '' }}>DWIA-TMD</option>
-                    <option value="DTC HUB" {{ request('project') === 'DTC HUB' ? 'selected' : '' }}>DTC HUB</option>
-                    <option value="SPARK" {{ request('project') === 'SPARK' ? 'selected' : '' }}>SPARK</option>
-                    <option value="PROJECT CLICK" {{ request('project') === 'PROJECT CLICK' ? 'selected' : '' }}>PROJECT CLICK</option>
+            <div class="flex items-center gap-2 flex-wrap">
+                <select x-model="projectFilter" class="text-xs p-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500">
+                    <option value="">All Projects</option>
+                    <template x-for="p in projects" :key="p"><option :value="p" x-text="p"></option></template>
                 </select>
-                <select name="status" class="text-xs p-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500">
-                    <option value="ALL">All Status</option>
-                    <option value="Disbursed" {{ request('status') === 'Disbursed' ? 'selected' : '' }}>Disbursed</option>
-                    <option value="Obligated" {{ request('status') === 'Obligated' ? 'selected' : '' }}>Obligated</option>
-                    <option value="Pending" {{ request('status') === 'Pending' ? 'selected' : '' }}>Pending</option>
+                <select x-model="statusFilter" class="text-xs p-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500">
+                    <option value="">All Status</option>
+                    <option value="Disbursed">Disbursed</option>
+                    <option value="Obligated">Obligated</option>
+                    <option value="Pending">Pending</option>
                 </select>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search voucher, description..." class="text-xs p-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500 w-full sm:w-56">
-                <button type="submit" class="bg-purple-800 hover:bg-purple-700 text-white px-3 py-2.5 rounded-lg text-xs font-semibold transition">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </button>
-            </form>
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" x-model="search" placeholder="Search voucher, description..." class="text-xs pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500 w-full sm:w-56">
+                </div>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -221,60 +226,61 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
-                    @forelse($records as $r)
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="px-4 py-3 font-mono text-[11px] font-bold text-purple-700">{{ $r->voucher_ref }}</td>
-                        <td class="px-4 py-3">
-                            <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold">{{ $r->project }}</span>
-                        </td>
-                        <td class="px-4 py-3 max-w-[180px] truncate" title="{{ $r->description }}">{{ $r->description }}</td>
-                        <td class="px-4 py-3 text-[11px]">{{ $r->expense_category }}</td>
-                        <td class="px-4 py-3 text-right font-mono">₱{{ number_format($r->allocated) }}</td>
-                        <td class="px-4 py-3 text-right font-mono">₱{{ number_format($r->obligated) }}</td>
-                        <td class="px-4 py-3 text-right font-mono">₱{{ number_format($r->disbursed) }}</td>
-                        <td class="px-4 py-3 text-[11px] whitespace-nowrap">{{ $r->transaction_date->format('M d, Y') }}</td>
-                        <td class="px-4 py-3 text-center">
-                            @if($r->status === 'Disbursed')
-                            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Disbursed</span>
-                            @elseif($r->status === 'Obligated')
-                            <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Obligated</span>
-                            @else
-                            <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <form action="{{ route('funding.destroy', $r) }}" method="POST" onsubmit="return confirm('Delete this record?')" class="inline">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash-can"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="10" class="px-4 py-12 text-center text-slate-400">
-                            <i class="fa-solid fa-file-invoice text-3xl mb-2 block"></i>
-                            No funding records found.
-                        </td>
-                    </tr>
-                    @endforelse
+                    <template x-for="r in pagedRecords" :key="r.id">
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-4 py-3 font-mono text-[11px] font-bold text-purple-700" x-text="r.voucher_ref"></td>
+                            <td class="px-4 py-3"><span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold" x-text="r.project"></span></td>
+                            <td class="px-4 py-3 max-w-[180px] truncate" :title="r.description" x-text="r.description"></td>
+                            <td class="px-4 py-3 text-[11px]" x-text="r.expense_category"></td>
+                            <td class="px-4 py-3 text-right font-mono" x-text="'₱' + Number(r.allocated).toLocaleString()"></td>
+                            <td class="px-4 py-3 text-right font-mono" x-text="'₱' + Number(r.obligated).toLocaleString()"></td>
+                            <td class="px-4 py-3 text-right font-mono" x-text="'₱' + Number(r.disbursed).toLocaleString()"></td>
+                            <td class="px-4 py-3 text-[11px] whitespace-nowrap" x-text="new Date(r.transaction_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})"></td>
+                            <td class="px-4 py-3 text-center">
+                                <span x-show="r.status === 'Disbursed'" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Disbursed</span>
+                                <span x-show="r.status === 'Obligated'" class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Obligated</span>
+                                <span x-show="r.status === 'Pending'" class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <button x-on:click="deleteRecord(r)" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
+            <div x-show="filteredRecords.length === 0" class="text-center text-slate-400 py-12 text-xs">
+                <i class="fa-solid fa-file-invoice text-3xl mb-2 block text-slate-300"></i>
+                No funding records found.
+            </div>
         </div>
 
-        <div class="mt-4">
-            {{ $records->links() }}
+        {{-- PAGINATION --}}
+        <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3 mt-4">
+            <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                <span>Rows per page:</span>
+                <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700">
+                    <template x-for="n in [5, 10, 15, 20, 30, 50]" :key="n"><option :value="n" x-text="n"></option></template>
+                </select>
+            </div>
+            <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}–${pageTo} of ${filteredRecords.length}`"></div>
+            <div class="flex items-center gap-1">
+                <button x-on:click="page--" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
+                <template x-for="p in pageNumbers" :key="'fp'+p">
+                    <button x-on:click="page = p" :class="page === p ? 'bg-purple-600 text-white border-purple-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border" x-text="p"></button>
+                </template>
+                <button x-on:click="page++" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
+            </div>
         </div>
     </div>
 
     {{-- ADD FUNDING MODAL --}}
-    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addFunding')" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addFunding')" x-on:close-modal.window="if ($event.detail === 'addFunding') show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full overflow-x-hidden overflow-y-auto border border-slate-200 max-h-[90vh] custom-scrollbar">
             <div class="bg-dict-blue text-white px-6 py-4 flex items-center justify-between">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-sack-dollar text-yellow-400"></i> Add Funding Record</h3>
                 <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form action="{{ route('funding.store') }}" method="POST" class="p-6 space-y-4 text-xs">
-                @csrf
+            <form id="addFundingForm" x-on:submit.prevent="addRecord($event.target)" class="p-6 space-y-4 text-xs">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Project <span class="text-red-500">*</span></label>
@@ -333,7 +339,7 @@
                 </div>
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-check mr-1"></i> Save Record</button>
+                    <button type="submit" form="addFundingForm" :disabled="saving" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Record</button>
                 </div>
             </form>
         </div>
@@ -342,6 +348,80 @@
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
+    window.fundingCrud = function(seed) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const storeUrl = '{{ route("funding.store") }}';
+        const destroyUrl = '{{ route("funding.destroy", ["funding" => "__ID__"]) }}';
+        return {
+            records: seed,
+            search: '',
+            projectFilter: '',
+            statusFilter: '',
+            saving: false,
+            notice: '',
+            noticeType: 'success',
+            page: 1,
+            perPage: 10,
+            get projects() { return [...new Set(this.records.map(r => r.project))].sort(); },
+            get filteredRecords() {
+                const q = this.search.trim().toLowerCase();
+                return this.records.filter(r => {
+                    const haystack = [r.voucher_ref, r.description, r.expense_category, r.project].join(' ').toLowerCase();
+                    const matchQ = !q || haystack.includes(q);
+                    const matchP = !this.projectFilter || r.project === this.projectFilter;
+                    const matchS = !this.statusFilter || r.status === this.statusFilter;
+                    return matchQ && matchP && matchS;
+                });
+            },
+            get totalPages() { return Math.max(1, Math.ceil(this.filteredRecords.length / this.perPage)); },
+            get pageNumbers() {
+                const total = this.totalPages, cur = this.page;
+                const start = Math.max(1, cur - 2), end = Math.min(total, start + 4);
+                const pages = []; for (let p = start; p <= end; p++) pages.push(p); return pages;
+            },
+            get pageFrom() { return this.filteredRecords.length === 0 ? 0 : (this.page - 1) * this.perPage + 1; },
+            get pageTo() { return Math.min(this.page * this.perPage, this.filteredRecords.length); },
+            get pagedRecords() {
+                if (this.page > this.totalPages) this.page = this.totalPages;
+                const start = (this.page - 1) * this.perPage;
+                return this.filteredRecords.slice(start, start + this.perPage);
+            },
+            flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
+            init() { ['search','projectFilter','statusFilter'].forEach(k => this.$watch(k, () => this.page = 1)); },
+            async addRecord(form) {
+                if (this.saving) return;
+                this.saving = true;
+                try {
+                    const fd = new FormData(form);
+                    const res = await fetch(storeUrl, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                        body: fd,
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed to add record.');
+                    this.records.unshift(data.record);
+                    form.reset();
+                    this.$dispatch('close-modal', 'addFunding');
+                    this.flash('Funding record added successfully.');
+                } catch(e) { this.flash(e.message, 'error'); } finally { this.saving = false; }
+            },
+            async deleteRecord(r) {
+                if (!confirm('Delete this record?')) return;
+                if (this.saving) return;
+                this.saving = true;
+                try {
+                    const url = destroyUrl.replace('__ID__', r.id);
+                    const res = await fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Delete failed.');
+                    this.records = this.records.filter(x => x.id !== r.id);
+                    this.flash('Funding record deleted.');
+                } catch(e) { this.flash(e.message, 'error'); } finally { this.saving = false; }
+            },
+        };
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof Chart === 'undefined') return;
 

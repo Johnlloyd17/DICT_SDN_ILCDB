@@ -22,7 +22,7 @@ class CourseController extends Controller
             'reference_folders' => 'nullable|string|max:255',
         ]);
 
-        Course::create([
+        $course = Course::create([
             'course_code' => $request->course_code,
             'title' => $request->title,
             'specialty_track' => $request->specialty_track,
@@ -34,6 +34,9 @@ class CourseController extends Controller
             'reference_folders' => $request->reference_folders,
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['course' => $course], 201);
+        }
         return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
             ->with('success', 'Course added successfully.');
     }
@@ -64,6 +67,9 @@ class CourseController extends Controller
             'reference_folders' => $request->reference_folders,
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['course' => $course->fresh()]);
+        }
         return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
             ->with('success', 'Course updated successfully.');
     }
@@ -71,6 +77,10 @@ class CourseController extends Controller
     public function destroy(Course $course)
     {
         $course->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Course deleted.']);
+        }
         return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
             ->with('success', 'Course deleted.');
     }

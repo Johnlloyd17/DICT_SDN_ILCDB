@@ -61,7 +61,7 @@ class TraineeController extends Controller
         $lastId = SparkTrainee::max('id') ?? 0;
         $code = 'SPK-' . date('Y') . '-' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
 
-        SparkTrainee::create([
+        $trainee = SparkTrainee::create([
             'trainee_code' => $code,
             'full_name' => $request->full_name,
             'specialty' => $request->specialty,
@@ -71,6 +71,9 @@ class TraineeController extends Controller
             'monthly_earnings' => $request->monthly_earnings,
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['trainee' => $trainee], 201);
+        }
         return redirect()->route('spark.trainees.index')->with('success', 'Trainee added successfully.');
     }
 
@@ -90,12 +93,19 @@ class TraineeController extends Controller
             'employment_status', 'monthly_earnings',
         ]));
 
+        if ($request->wantsJson()) {
+            return response()->json(['trainee' => $trainee->fresh()]);
+        }
         return redirect()->route('spark.trainees.index')->with('success', 'Trainee updated.');
     }
 
     public function destroy(SparkTrainee $trainee)
     {
         $trainee->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Trainee removed.']);
+        }
         return redirect()->route('spark.trainees.index')->with('success', 'Trainee removed.');
     }
 }

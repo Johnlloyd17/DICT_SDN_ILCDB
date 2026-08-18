@@ -108,7 +108,73 @@
 </div>
 
 {{-- VISITOR LOGS TABLE --}}
-<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+<div x-data="{
+    allVisitors: @json($visitors->items()),
+    hubsMap: @json($hubs->pluck('name', 'id')->toArray()),
+    search: '{{ request('v_search', '') }}',
+    filterHub: '{{ request('hub', 'ALL') }}',
+    filterDemo: '{{ request('demo', 'ALL') }}',
+    filterService: '{{ request('service', 'ALL') }}',
+    perPage: 15,
+    currentPage: 1,
+    deleting: null,
+
+    get filtered() {
+        let items = [...this.allVisitors];
+        if (this.filterHub !== 'ALL') items = items.filter(v => this.hubName(v) === this.filterHub);
+        if (this.filterDemo !== 'ALL') items = items.filter(v => v.demographic_sector === this.filterDemo);
+        if (this.filterService !== 'ALL') items = items.filter(v => (v.services_ailed || []).includes(this.filterService));
+        if (this.search) {
+            const q = this.search.toLowerCase();
+            items = items.filter(v =>
+                (v.visitor_name || '').toLowerCase().includes(q) ||
+                (v.log_code || '').toLowerCase().includes(q) ||
+                (v.demographic_sector || '').toLowerCase().includes(q)
+            );
+        }
+        return items;
+    },
+
+    get paginated() {
+        const start = (this.currentPage - 1) * this.perPage;
+        return this.filtered.slice(start, start + this.perPage);
+    },
+
+    get totalPages() {
+        return Math.ceil(this.filtered.length / this.perPage) || 1;
+    },
+
+    prevPage() { if (this.currentPage > 1) this.currentPage--; },
+    nextPage() { if (this.currentPage < this.totalPages) this.currentPage++; },
+    goToPage(p) { this.currentPage = Math.max(1, Math.min(p, this.totalPages)); },
+
+    hubName(v) {
+        if (v.dtc_hub && v.dtc_hub.name) return v.dtc_hub.name;
+        return this.hubsMap[v.dtc_hub_id] || v.dtc_hub_name || '-';
+    },
+
+    formatDate(d) {
+        if (!d) return '—';
+        const dt = new Date(d);
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return months[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+    },
+
+    async deleteVisitor(id) {
+        if (!confirm('Delete this log?')) return;
+        this.deleting = id;
+        try {
+            const res = await fetch('{{ url('dtc/visitors') }}/' + id, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (res.ok) {
+                this.allVisitors = this.allVisitors.filter(v => v.id !== id);
+            }
+        } catch(err) { console.error(err); }
+        this.deleting = null;
+    }
+}" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
             <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
@@ -118,31 +184,27 @@
         </div>
     </div>
 
-    <form method="GET" class="flex flex-wrap items-center gap-2 p-3 mb-4 bg-slate-50 border border-slate-200 rounded-lg">
-        <input type="hidden" name="view" value="services">
-        <select name="hub" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
+    <div class="flex flex-wrap items-center gap-2 p-3 mb-4 bg-slate-50 border border-slate-200 rounded-lg">
+        <select x-model="filterHub" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
             <option value="ALL">All DTC Hubs</option>
             @foreach($hubs as $hub)
-            <option value="{{ $hub->name }}" {{ request('hub') === $hub->name ? 'selected' : '' }}>{{ $hub->name }}</option>
+            <option value="{{ $hub->name }}">{{ $hub->name }}</option>
             @endforeach
         </select>
-        <select name="demo" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
+        <select x-model="filterDemo" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
             <option value="ALL">All Demographics</option>
             @foreach(['Student / Youth', 'Senior Citizen / PWD', 'Jobseeker / Out-of-School Youth', 'MSME / Freelancer', 'LGU / Govt Employee'] as $d)
-            <option value="{{ $d }}" {{ request('demo') === $d ? 'selected' : '' }}>{{ $d }}</option>
+            <option value="{{ $d }}">{{ $d }}</option>
             @endforeach
         </select>
-        <select name="service" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
+        <select x-model="filterService" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
             <option value="ALL">All Services</option>
             @foreach(['Free High-Speed Internet', 'eGov PH & Government Portal Access', 'Printing & Document Scanning', 'Co-working & Freelance Space', 'Tech Assistance & Consultation'] as $s)
-            <option value="{{ $s }}" {{ request('service') === $s ? 'selected' : '' }}>{{ $s }}</option>
+            <option value="{{ $s }}">{{ $s }}</option>
             @endforeach
         </select>
-        <input type="text" name="v_search" value="{{ request('v_search') }}" placeholder="Search name, ID, sector..." class="flex-1 min-w-40 text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white">
-        <button type="submit" class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition">
-            <i class="fa-solid fa-magnifying-glass"></i>
-        </button>
-    </form>
+        <input type="text" x-model.debounce.300ms="search" x-on:input="currentPage = 1" placeholder="Search name, ID, sector..." class="flex-1 min-w-40 text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white">
+    </div>
 
     <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
@@ -158,49 +220,53 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
-                @forelse($visitors as $v)
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="px-4 py-3">
-                        <span class="font-mono text-[11px] font-bold text-cyan-700">{{ $v->log_code }}</span>
-                        <br><span class="text-[10px] text-slate-400">{{ $v->visit_date->format('M d, Y') }}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="font-semibold">{{ $v->visitor_name }}</span>
-                        <br><span class="text-[10px] text-slate-400">{{ $v->gender }}, {{ $v->age }} yrs</span>
-                    </td>
-<td class="px-4 py-3 hidden md:table-cell">
-                            <span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">{{ $v->demographic_sector }}</span>
+                <template x-for="(v, idx) in paginated" :key="v.id">
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-3">
+                            <span class="font-mono text-[11px] font-bold text-cyan-700" x-text="v.log_code"></span>
+                            <br><span class="text-[10px] text-slate-400" x-text="formatDate(v.visit_date)"></span>
                         </td>
-                    <td class="px-4 py-3 text-[11px] hidden md:table-cell">{{ $v->dtcHub->name ?? '-' }}</td>
-                    <td class="px-4 py-3">
-                        @foreach(($v->services_ailed ?? []) as $svc)
-                        <span class="bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded text-[9px] font-bold inline-block mb-0.5">{{ Str::limit($svc, 18) }}</span>
-                        @endforeach
-                    </td>
-                    <td class="px-4 py-3 text-center text-[11px] font-bold hidden md:table-cell">{{ $v->session_duration }}</td>
-                    <td class="px-4 py-3 text-center">
-                        <button x-data x-on:click="$dispatch('edit-visitor', { visitor: {{ $v->toJson() }} })" class="text-blue-400 hover:text-blue-600 text-[11px] mr-2" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                        <form action="{{ route('dtc.visitors.destroy', $v) }}" method="POST" onsubmit="return confirm('Delete this log?')" class="inline">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-red-400 hover:text-red-600 text-[11px]"><i class="fa-solid fa-trash"></i></button>
-                        </form>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="7" class="px-4 py-12 text-center text-slate-400">
-                        <i class="fa-solid fa-clipboard-list text-3xl mb-2 block"></i>
-                        No visitor logs found.
-                    </td>
-                </tr>
-                @endforelse
+                        <td class="px-4 py-3">
+                            <span class="font-semibold" x-text="v.visitor_name"></span>
+                            <br><span class="text-[10px] text-slate-400" x-text="v.gender + ', ' + v.age + ' yrs'"></span>
+                        </td>
+                        <td class="px-4 py-3 hidden md:table-cell">
+                            <span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold" x-text="v.demographic_sector"></span>
+                        </td>
+                        <td class="px-4 py-3 text-[11px] hidden md:table-cell" x-text="hubName(v)"></td>
+                        <td class="px-4 py-3">
+                            <template x-for="svc in (v.services_ailed || [])" :key="svc">
+                                <span class="bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded text-[9px] font-bold inline-block mb-0.5" x-text="svc.length > 18 ? svc.substring(0,18)+'...' : svc"></span>
+                            </template>
+                        </td>
+                        <td class="px-4 py-3 text-center text-[11px] font-bold hidden md:table-cell" x-text="v.session_duration"></td>
+                        <td class="px-4 py-3 text-center">
+                            <button x-on:click="$dispatch('edit-visitor', { visitor: v })" class="text-blue-400 hover:text-blue-600 text-[11px] mr-2" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                            <button x-on:click="deleteVisitor(v.id)" :disabled="deleting === v.id" class="text-red-400 hover:text-red-600 text-[11px]" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                </template>
+                <template x-if="filtered.length === 0">
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center text-slate-400">
+                            <i class="fa-solid fa-clipboard-list text-3xl mb-2 block"></i>
+                            No visitor logs found.
+                        </td>
+                    </tr>
+                </template>
             </tbody>
         </table>
     </div>
 
     <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-        <span>Showing {{ $visitors->total() }} visitor logs</span>
+        <span>Showing <span x-text="filtered.length ? ((currentPage - 1) * perPage + 1) : 0"></span>–<span x-text="Math.min(currentPage * perPage, filtered.length)"></span> of <span x-text="filtered.length"></span> visitor logs</span>
         <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-500"></span> Live Sync Active</span>
     </div>
-    <div class="mt-2">{{ $visitors->links() }}</div>
+    <div class="mt-2 flex items-center gap-1" x-show="totalPages > 1">
+        <button x-on:click="prevPage()" :disabled="currentPage <= 1" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">&laquo; Prev</button>
+        <template x-for="p in totalPages" :key="p">
+            <button x-on:click="goToPage(p)" :class="p === currentPage ? 'bg-cyan-700 text-white border-cyan-700' : 'border-slate-300 hover:bg-slate-100'" class="px-3 py-1 rounded-lg text-xs font-semibold border" x-text="p"></button>
+        </template>
+        <button x-on:click="nextPage()" :disabled="currentPage >= totalPages" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">Next &raquo;</button>
+    </div>
 </div>

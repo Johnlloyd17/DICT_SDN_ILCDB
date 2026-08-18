@@ -69,8 +69,11 @@ class CenterInventoryController extends Controller
             'operational_status' => 'nullable|string|max:50',
         ]);
 
-        DtcCenterInventory::create($request->all());
+        $center = DtcCenterInventory::create($request->all());
 
+        if ($request->wantsJson()) {
+            return response()->json(['center' => $center], 201);
+        }
         return redirect()->back(302, [], route('dtc.centers.index'))
             ->with('success', 'Center added successfully.');
     }
@@ -101,6 +104,9 @@ class CenterInventoryController extends Controller
 
         $center->update($request->all());
 
+        if ($request->wantsJson()) {
+            return response()->json(['center' => $center->fresh()]);
+        }
         return redirect()->back(302, [], route('dtc.centers.index'))
             ->with('success', 'Center updated successfully.');
     }
@@ -108,6 +114,10 @@ class CenterInventoryController extends Controller
     public function destroy(DtcCenterInventory $center)
     {
         $center->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Center removed.']);
+        }
         return redirect()->back(302, [], route('dtc.centers.index'))
             ->with('success', 'Center removed.');
     }
@@ -121,6 +131,9 @@ class CenterInventoryController extends Controller
 
         $count = DtcCenterInventory::whereIn('id', $request->ids)->delete();
 
+        if ($request->wantsJson()) {
+            return response()->json(['message' => "Successfully deleted {$count} center(s)."]);
+        }
         return redirect()->back(302, [], route('dtc.centers.index'))
             ->with('success', "Successfully deleted {$count} center(s).");
     }

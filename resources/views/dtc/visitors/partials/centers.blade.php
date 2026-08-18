@@ -52,14 +52,98 @@
 
 {{-- TABLE SECTION --}}
 <div x-data="{
+    allCenters: @json($centers->items()),
     selectedIds: [],
-    allIds: [{{ implode(',', $centers->pluck('id')->toArray()) }}],
+    search: '{{ request('c_search', '') }}',
+    filterMunicipality: '{{ request('municipality', 'ALL') }}',
+    filterOperational: '{{ request('c_operational', 'ALL') }}',
+    perPage: {{ (int) request('c_per_page', 15) }},
+    currentPage: 1,
+    deleting: null,
+    deletingBatch: false,
+
+    get filtered() {
+        let items = [...this.allCenters];
+        if (this.filterMunicipality !== 'ALL') items = items.filter(c => c.municipality_city === this.filterMunicipality);
+        if (this.filterOperational !== 'ALL') items = items.filter(c => c.operational_status === this.filterOperational);
+        if (this.search) {
+            const q = this.search.toLowerCase();
+            items = items.filter(c =>
+                (c.center_name || '').toLowerCase().includes(q) ||
+                (c.municipality_city || '').toLowerCase().includes(q) ||
+                (c.barangay || '').toLowerCase().includes(q) ||
+                (c.congressional_district || '').toLowerCase().includes(q)
+            );
+        }
+        return items;
+    },
+
+    get paginated() {
+        const start = (this.currentPage - 1) * this.perPage;
+        return this.filtered.slice(start, start + this.perPage);
+    },
+
+    get totalPages() {
+        return Math.ceil(this.filtered.length / this.perPage) || 1;
+    },
+
+    prevPage() { if (this.currentPage > 1) this.currentPage--; },
+    nextPage() { if (this.currentPage < this.totalPages) this.currentPage++; },
+    goToPage(p) { this.currentPage = Math.max(1, Math.min(p, this.totalPages)); },
+
     toggleSelectAll() {
-        if (this.selectedIds.length === this.allIds.length && this.allIds.length > 0) {
+        const pageIds = this.paginated.map(c => c.id);
+        if (this.selectedIds.length === pageIds.length && pageIds.length > 0) {
             this.selectedIds = [];
         } else {
-            this.selectedIds = [...this.allIds];
+            this.selectedIds = [...pageIds];
         }
+    },
+
+    formatDate(d) {
+        if (!d) return '—';
+        const dt = new Date(d);
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return months[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+    },
+
+    formatYmd(d) {
+        if (!d) return '';
+        return new Date(d).toISOString().split('T')[0];
+    },
+
+    async deleteCenter(id) {
+        if (!confirm('Delete this center?')) return;
+        this.deleting = id;
+        try {
+            const res = await fetch('{{ url('dtc/centers') }}/' + id, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (res.ok) {
+                this.allCenters = this.allCenters.filter(c => c.id !== id);
+                this.selectedIds = this.selectedIds.filter(sid => sid !== id);
+            }
+        } catch(err) { console.error(err); }
+        this.deleting = null;
+    },
+
+    async deleteSelected() {
+        if (!this.selectedIds.length) return;
+        if (!confirm('Are you sure you want to delete ' + this.selectedIds.length + ' selected center(s)? This action cannot be undone.')) return;
+        this.deletingBatch = true;
+        try {
+            const res = await fetch('{{ route('dtc.centers.batchDelete') }}', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: this.selectedIds })
+            });
+            if (res.ok) {
+                this.allCenters = this.allCenters.filter(c => !this.selectedIds.includes(c.id));
+                this.selectedIds = [];
+            }
+        } catch(err) { console.error(err); }
+        this.deletingBatch = false;
     }
 }" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
@@ -67,47 +151,37 @@
             <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                 <i class="fa-solid fa-list text-cyan-600"></i> Center Inventory Registry
             </h3>
-            <form method="POST" action="{{ route('dtc.centers.batchDelete') }}" x-show="selectedIds.length > 0" x-cloak x-on:submit="if (!confirm('Are you sure you want to delete ' + selectedIds.length + ' selected center(s)? This action cannot be undone.')) $event.preventDefault()" class="inline-flex items-center">
-                @csrf
-                <template x-for="id in selectedIds" :key="id">
-                    <input type="hidden" name="ids[]" :value="id">
-                </template>
-                <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition">
-                    <i class="fa-solid fa-trash-can"></i>
-                    <span>Delete Selected (<span x-text="selectedIds.length"></span>)</span>
-                </button>
-            </form>
+            <button x-show="selectedIds.length > 0" x-cloak x-on:click="deleteSelected()" :disabled="deletingBatch" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>Delete Selected (<span x-text="selectedIds.length"></span>)</span>
+            </button>
         </div>
-        <form method="GET" class="flex items-center gap-2 flex-wrap">
-            <input type="hidden" name="view" value="centers">
-            <select name="municipality" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
+        <div class="flex items-center gap-2 flex-wrap">
+            <select x-model="filterMunicipality" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
                 <option value="ALL">All Municipalities</option>
                 @foreach($municipalities as $m)
-                <option value="{{ $m }}" {{ request('municipality') === $m ? 'selected' : '' }}>{{ $m }}</option>
+                <option value="{{ $m }}">{{ $m }}</option>
                 @endforeach
             </select>
-            <select name="c_operational" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
+            <select x-model="filterOperational" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
                 <option value="ALL">All Status</option>
-                <option value="Operational" {{ request('c_operational') === 'Operational' ? 'selected' : '' }}>Operational</option>
-                <option value="Non-Operational" {{ request('c_operational') === 'Non-Operational' ? 'selected' : '' }}>Non-Operational</option>
+                <option value="Operational">Operational</option>
+                <option value="Non-Operational">Non-Operational</option>
             </select>
-            <select name="c_per_page" onchange="this.form.submit()" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500" title="Rows per page">
-                <option value="5" {{ (int)request('c_per_page') === 5 ? 'selected' : '' }}>5 rows</option>
-                <option value="10" {{ (int)request('c_per_page') === 10 ? 'selected' : '' }}>10 rows</option>
-                <option value="15" {{ (int)request('c_per_page', 15) === 15 ? 'selected' : '' }}>15 rows</option>
-                <option value="20" {{ (int)request('c_per_page') === 20 ? 'selected' : '' }}>20 rows</option>
-                <option value="30" {{ (int)request('c_per_page') === 30 ? 'selected' : '' }}>30 rows</option>
-                <option value="40" {{ (int)request('c_per_page') === 40 ? 'selected' : '' }}>40 rows</option>
-                <option value="50" {{ (int)request('c_per_page') === 50 ? 'selected' : '' }}>50 rows</option>
-                <option value="100" {{ (int)request('c_per_page') === 100 ? 'selected' : '' }}>100 rows</option>
-                <option value="150" {{ (int)request('c_per_page') === 150 ? 'selected' : '' }}>150 rows</option>
-                <option value="200" {{ (int)request('c_per_page') === 200 ? 'selected' : '' }}>200 rows</option>
+            <select x-model="perPage" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500" title="Rows per page">
+                <option value="5">5 rows</option>
+                <option value="10">10 rows</option>
+                <option value="15">15 rows</option>
+                <option value="20">20 rows</option>
+                <option value="30">30 rows</option>
+                <option value="40">40 rows</option>
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+                <option value="150">150 rows</option>
+                <option value="200">200 rows</option>
             </select>
-            <input type="text" name="c_search" value="{{ request('c_search') }}" placeholder="Search center, municipality..." class="w-full sm:w-48 text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-            <button type="submit" class="bg-cyan-700 hover:bg-cyan-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
-                <i class="fa-solid fa-magnifying-glass"></i>
-            </button>
-        </form>
+            <input type="text" x-model.debounce.300ms="search" x-on:input="currentPage = 1" placeholder="Search center, municipality..." class="w-full sm:w-48 text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+        </div>
     </div>
 
     <div class="overflow-x-auto" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
@@ -115,7 +189,7 @@
             <thead>
                 <tr style="background-color: #9DC3E6;">
                     <th rowspan="2" class="sticky-col-head" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-size: 12px; font-weight: bold; background-color: #9DC3E6; position: sticky; left: 0; z-index: 3; width: 36px;">
-                        <input type="checkbox" :checked="selectedIds.length > 0 && selectedIds.length === allIds.length" x-on:change="toggleSelectAll()" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer" title="Select All On This Page">
+                        <input type="checkbox" :checked="selectedIds.length > 0 && selectedIds.length === paginated.length && paginated.length > 0" x-on:change="toggleSelectAll()" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer" title="Select All On This Page">
                     </th>
                     <th rowspan="2" class="sticky-col-head" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-size: 12px; font-weight: bold; position: sticky; left: 36px; z-index: 3; width: 48px;">No.</th>
                     <th colspan="5" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-size: 12px; font-weight: bold; background-color: #9DC3E6;">CENTER DETAILS</th>
@@ -147,73 +221,56 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($centers as $i => $c)
-                <tr :class="selectedIds.includes({{ $c->id }}) ? 'bg-cyan-50/60' : ''">
-                    <td class="sticky-col" :class="{ sel: selectedIds.includes({{ $c->id }}) }" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; position: sticky; left: 0; z-index: 2; width: 36px;">
-                        <input type="checkbox" value="{{ $c->id }}" x-model.number="selectedIds" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer">
-                    </td>
-                    <td class="sticky-col" :class="{ sel: selectedIds.includes({{ $c->id }}) }" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; height: 32px; position: sticky; left: 36px; z-index: 2; width: 48px;">{{ $centers->firstItem() + $i }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->congressional_district ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->province ?? 'Surigao del Norte' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->municipality_city }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->barangay ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-weight: bold;">{{ $c->center_name }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->longitude ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->latitude ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->verified ? 'True' : 'False' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->moa_date_of_signing ? $c->moa_date_of_signing->format('M d, Y') : '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->date_of_launching ? $c->date_of_launching->format('M d, Y') : '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->date_of_platform_registration ? $c->date_of_platform_registration->format('M d, Y') : '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->tcms_status ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->tcms_key ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->tcms_identifier ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->tcms_verification_status ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->odk_status ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->connectivity_status ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->type_of_center_host ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;">{{ $c->operational_status ?? '—' }}</td>
-                    <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; white-space: nowrap;">
-                        <button x-data x-on:click="$dispatch('edit-center', { center: {{ json_encode([
-                            'id' => $c->id,
-                            'congressional_district' => $c->congressional_district,
-                            'province' => $c->province,
-                            'municipality_city' => $c->municipality_city,
-                            'barangay' => $c->barangay,
-                            'center_name' => $c->center_name,
-                            'longitude' => $c->longitude,
-                            'latitude' => $c->latitude,
-                            'verified' => $c->verified,
-                            'moa_date_of_signing' => $c->moa_date_of_signing?->format('Y-m-d'),
-                            'date_of_launching' => $c->date_of_launching?->format('Y-m-d'),
-                            'date_of_platform_registration' => $c->date_of_platform_registration?->format('Y-m-d'),
-                            'tcms_status' => $c->tcms_status,
-                            'tcms_key' => $c->tcms_key,
-                            'tcms_identifier' => $c->tcms_identifier,
-                            'tcms_verification_status' => $c->tcms_verification_status,
-                            'odk_status' => $c->odk_status,
-                            'connectivity_status' => $c->connectivity_status,
-                            'type_of_center_host' => $c->type_of_center_host,
-                            'operational_status' => $c->operational_status,
-                        ]) }} })" class="text-blue-600 hover:text-blue-800" title="Edit" style="background:none;border:none;cursor:pointer;font-size:12px;">✏️</button>
-                        <form action="{{ route('dtc.centers.destroy', $c) }}" method="POST" onsubmit="return confirm('Delete this center?')" class="inline" style="display:inline;">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-red-600 hover:text-red-800" title="Delete" style="background:none;border:none;cursor:pointer;font-size:12px;">🗑️</button>
-                        </form>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="22" style="border: 1px solid #000; text-align: center; padding: 20px; color: #999;">
-                        <i class="fa-solid fa-warehouse" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
-                        No centers found.
-                    </td>
-                </tr>
-                @endforelse
+                <template x-for="(c, idx) in paginated" :key="c.id">
+                    <tr :class="selectedIds.includes(c.id) ? 'bg-cyan-50/60' : ''">
+                        <td class="sticky-col" :class="{ sel: selectedIds.includes(c.id) }" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; position: sticky; left: 0; z-index: 2; width: 36px;">
+                            <input type="checkbox" :value="c.id" x-model.number="selectedIds" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer">
+                        </td>
+                        <td class="sticky-col" :class="{ sel: selectedIds.includes(c.id) }" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; height: 32px; position: sticky; left: 36px; z-index: 2; width: 48px;" x-text="(currentPage - 1) * perPage + idx + 1"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.congressional_district || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.province || 'Surigao del Norte'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.municipality_city"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.barangay || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-weight: bold;" x-text="c.center_name"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.longitude || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.latitude || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.verified ? 'True' : 'False'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="formatDate(c.moa_date_of_signing)"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="formatDate(c.date_of_launching)"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="formatDate(c.date_of_platform_registration)"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.tcms_status || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.tcms_key || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.tcms_identifier || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.tcms_verification_status || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.odk_status || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.connectivity_status || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.type_of_center_host || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px;" x-text="c.operational_status || '—'"></td>
+                        <td style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; white-space: nowrap;">
+                            <button x-on:click="$dispatch('edit-center', { center: { ...c, moa_date_of_signing: formatYmd(c.moa_date_of_signing), date_of_launching: formatYmd(c.date_of_launching), date_of_platform_registration: formatYmd(c.date_of_platform_registration) } })" class="text-blue-600 hover:text-blue-800" title="Edit" style="background:none;border:none;cursor:pointer;font-size:12px;">✏️</button>
+                            <button x-on:click="deleteCenter(c.id)" :disabled="deleting === c.id" class="text-red-600 hover:text-red-800" title="Delete" style="background:none;border:none;cursor:pointer;font-size:12px;">🗑️</button>
+                        </td>
+                    </tr>
+                </template>
+                <template x-if="filtered.length === 0">
+                    <tr>
+                        <td colspan="22" style="border: 1px solid #000; text-align: center; padding: 20px; color: #999;">
+                            <i class="fa-solid fa-warehouse" style="font-size: 24px; display: block; margin-bottom: 8px;"></i>
+                            No centers found.
+                        </td>
+                    </tr>
+                </template>
             </tbody>
         </table>
     </div>
     <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-        <span>Showing {{ $centers->total() }} centers</span>
+        <span>Showing <span x-text="filtered.length ? ((currentPage - 1) * perPage + 1) : 0"></span>–<span x-text="Math.min(currentPage * perPage, filtered.length)"></span> of <span x-text="filtered.length"></span> centers</span>
     </div>
-    <div class="mt-2">{{ $centers->links() }}</div>
+    <div class="mt-2 flex items-center gap-1" x-show="totalPages > 1">
+        <button x-on:click="prevPage()" :disabled="currentPage <= 1" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">&laquo; Prev</button>
+        <template x-for="p in totalPages" :key="p">
+            <button x-on:click="goToPage(p)" :class="p === currentPage ? 'bg-cyan-700 text-white border-cyan-700' : 'border-slate-300 hover:bg-slate-100'" class="px-3 py-1 rounded-lg text-xs font-semibold border" x-text="p"></button>
+        </template>
+        <button x-on:click="nextPage()" :disabled="currentPage >= totalPages" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">Next &raquo;</button>
+    </div>
 </div>

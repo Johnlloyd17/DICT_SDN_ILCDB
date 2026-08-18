@@ -50,7 +50,13 @@
         </div>
 
         {{-- ==================== PARTICIPANTS SUB-TAB ==================== --}}
-        <div x-show="activeTab === 'participants'" x-cloak x-transition class="space-y-6">
+        <div x-data="participantsCrud(@json($participants->getCollection()))" x-show="activeTab === 'participants'" x-cloak x-transition class="space-y-6">
+            <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
+                 :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+                <span x-text="notice"></span>
+            </div>
+
             {{-- KPI CARDS --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -103,57 +109,48 @@
                             <i class="fa-solid fa-id-card text-sm"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-slate-800 text-sm leading-tight">
-                                DWIA-TMD Training Participants
-                            </h3>
+                            <h3 class="font-bold text-slate-800 text-sm leading-tight">DWIA-TMD Training Participants</h3>
                             <p class="text-[11px] text-slate-400 mt-0.5">Manage participant records, certificates, and credentials.</p>
                         </div>
                     </div>
-                    <button x-data x-on:click="$dispatch('open-modal', 'addParticipant')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition inline-flex items-center justify-center gap-1.5 shadow-sm w-fit sm:w-auto">
+                    <button x-on:click="$dispatch('open-modal', 'addParticipant')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition inline-flex items-center justify-center gap-1.5 shadow-sm w-fit sm:w-auto">
                         <i class="fa-solid fa-user-plus"></i> Add Participant
                     </button>
                 </div>
-
                 <div class="px-5 py-3 border-b border-slate-100">
-                    <form method="GET" class="flex flex-col lg:flex-row lg:items-center gap-2">
+                    <div class="flex flex-col lg:flex-row lg:items-center gap-2">
                         <div class="relative flex-1 max-w-md min-w-[220px]">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search name, LGU, course..." class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
+                            <input type="text" x-model="search" placeholder="Search name, LGU, course..." class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <select name="batch" class="text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
-                                <option value="ALL">All Batches</option>
-                                @foreach($batches as $batch)
-                                <option value="{{ $batch->id }}" {{ request('batch') == $batch->id ? 'selected' : '' }}>{{ $batch->batch_code }} ({{ Str::limit($batch->course_title, 20) }})</option>
-                                @endforeach
+                            <select x-model="batchFilter" class="text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
+                                <option value="">All Batches</option>
+                                <template x-for="b in batchOptions" :key="b.id">
+                                    <option :value="String(b.id)" x-text="b.batch_code + ' (' + (b.course_title || '').substring(0, 20) + ')'"></option>
+                                </template>
                             </select>
-                            <select name="cert" class="text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
-                                <option value="ALL">All Status</option>
-                                <option value="Uploaded" {{ request('cert') === 'Uploaded' ? 'selected' : '' }}>Uploaded</option>
-                                <option value="Pending" {{ request('cert') === 'Pending' ? 'selected' : '' }}>Pending</option>
-                                <option value="Ongoing" {{ request('cert') === 'Ongoing' ? 'selected' : '' }}>Ongoing</option>
+                            <select x-model="certFilter" class="text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
+                                <option value="">All Status</option>
+                                <option value="Uploaded">Uploaded</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Ongoing">Ongoing</option>
                             </select>
-                            <button type="submit" class="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5">
-                                <i class="fa-solid fa-filter text-[10px]"></i> Apply
-                            </button>
-                            @if(request()->filled('search') || (request()->filled('batch') && request('batch') !== 'ALL') || (request()->filled('cert') && request('cert') !== 'ALL'))
-                            <a href="{{ route('tmd.participants.index') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5">
+                            <button x-on:click="search = ''; batchFilter = ''; certFilter = ''" x-show="search || batchFilter || certFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate-left text-[10px]"></i> Reset
-                            </a>
-                            @endif
+                            </button>
                             <div class="h-6 w-px bg-slate-200 mx-1 hidden lg:block"></div>
                             <label class="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium whitespace-nowrap">
                                 Rows:
-                                <select name="per_page" onchange="this.form.submit()" class="text-xs px-2 py-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
-                                    @foreach([5, 10, 20, 30, 40, 50, 100, 150, 200] as $n)
-                                    <option value="{{ $n }}" @selected((int) request('per_page', 5) === $n)>{{ $n }}</option>
-                                    @endforeach
+                                <select x-model.number="perPage" x-on:change="page = 1" class="text-xs px-2 py-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
+                                    <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
+                                        <option :value="n" x-text="n"></option>
+                                    </template>
                                 </select>
                             </label>
                         </div>
-                    </form>
+                    </div>
                 </div>
-
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-800 text-white uppercase font-bold text-[11px] tracking-wider">
@@ -169,82 +166,90 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium text-slate-700 bg-white">
-                            @forelse($participants as $p)
-                            <tr class="hover:bg-slate-50/70 transition">
-                                <td class="px-5 py-3">
-                                    <span class="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md inline-block">{{ $p->participant_code }}</span>
-                                </td>
-                                <td class="px-5 py-3 font-semibold text-slate-800">{{ $p->full_name }}</td>
-                                <td class="px-5 py-3">
-                                    <div class="flex flex-col">
-                                        <span class="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded w-fit">{{ $p->trainingBatch->batch_code ?? '-' }}</span>
-                                        <span class="text-[10px] text-slate-400 mt-0.5">{{ Str::limit($p->trainingBatch->course_title ?? '', 30) }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-5 py-3 text-[11px]">{{ $p->agency_sector }}</td>
-                                <td class="px-5 py-3">
-                                    <span class="inline-flex items-center gap-1.5 text-[11px]">
-                                        <i class="fa-solid fa-city text-slate-300 text-[10px]"></i>{{ $p->municipality }}
-                                    </span>
-                                </td>
-                                <td class="px-5 py-3 text-[11px] text-slate-500 whitespace-nowrap">{{ $p->completion_date?->format('M d, Y') ?? '-' }}</td>
-                                <td class="px-5 py-3 text-center">
-                                    @if($p->completion_status === 'Completed')
-                                    <span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-circle-check text-[9px]"></i>Certified</span>
-                                    @elseif($p->completion_status === 'Ongoing')
-                                    <span class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-rotate text-[9px]"></i>Ongoing</span>
-                                    @else
-                                    <span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-hourglass-half text-[9px]"></i>Pending</span>
-                                    @endif
-                                </td>
-                                <td class="px-5 py-3 text-center whitespace-nowrap">
-                                    @if($p->certificate_file)
-                                    <button data-participant='@json($p)' x-on:click="$dispatch('open-cert', { participant: JSON.parse($el.dataset.participant), url: '{{ request()->root() }}/storage/{{ $p->certificate_file }}' })" class="bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-200 transition inline-flex items-center gap-1">
-                                        <i class="fa-solid fa-eye"></i>View
-                                    </button>
-                                    <form method="POST" action="{{ route('tmd.participants.certificate.delete', $p) }}" class="inline" onsubmit="return confirm('Remove this certificate?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="bg-red-100 text-red-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-red-200 transition inline-flex items-center gap-1">
-                                            <i class="fa-solid fa-trash-can"></i>Remove
-                                        </button>
-                                    </form>
-                                    @else
-                                    <button data-id="{{ $p->id }}" data-name="{{ $p->full_name }}" data-code="{{ $p->participant_code }}" x-on:click="$dispatch('open-upload', { id: $el.dataset.id, name: $el.dataset.name, code: $el.dataset.code })" class="bg-slate-100 text-slate-500 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition inline-flex items-center gap-1">
-                                        <i class="fa-solid fa-upload"></i>Upload
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="8" class="px-5 py-14 text-center text-slate-400">
-                                    <div class="w-14 h-14 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                        <i class="fa-solid fa-users-slash text-xl text-slate-300"></i>
-                                    </div>
-                                    <p class="text-sm font-semibold text-slate-500">No participants found</p>
-                                    <p class="text-[11px] mt-1">Try adjusting your search or filters.</p>
-                                </td>
-                            </tr>
-                            @endforelse
+                            <template x-for="p in pagedParticipants" :key="p.id">
+                                <tr class="hover:bg-slate-50/70 transition">
+                                    <td class="px-5 py-3">
+                                        <span class="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md inline-block" x-text="p.participant_code"></span>
+                                    </td>
+                                    <td class="px-5 py-3 font-semibold text-slate-800" x-text="p.full_name"></td>
+                                    <td class="px-5 py-3">
+                                        <div class="flex flex-col">
+                                            <span class="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded w-fit" x-text="(p.trainingBatch || {}).batch_code || '-'"></span>
+                                            <span class="text-[10px] text-slate-400 mt-0.5" x-text="((p.trainingBatch || {}).course_title || '').substring(0, 30)"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-3 text-[11px]" x-text="p.agency_sector"></td>
+                                    <td class="px-5 py-3">
+                                        <span class="inline-flex items-center gap-1.5 text-[11px]">
+                                            <i class="fa-solid fa-city text-slate-300 text-[10px]"></i><span x-text="p.municipality"></span>
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-3 text-[11px] text-slate-500 whitespace-nowrap" x-text="fmtDate(p.completion_date)"></td>
+                                    <td class="px-5 py-3 text-center">
+                                        <span x-show="p.completion_status === 'Completed'" class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-circle-check text-[9px]"></i>Certified</span>
+                                        <span x-show="p.completion_status === 'Ongoing'" class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-rotate text-[9px]"></i>Ongoing</span>
+                                        <span x-show="p.completion_status !== 'Completed' && p.completion_status !== 'Ongoing'" class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-hourglass-half text-[9px]"></i>Pending</span>
+                                    </td>
+                                    <td class="px-5 py-3 text-center whitespace-nowrap">
+                                        <template x-if="p.certificate_file">
+                                            <span class="inline-flex gap-1">
+                                                <button x-on:click="$dispatch('open-cert', { participant: p, url: window.location.origin + '/storage/' + p.certificate_file })" class="bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-200 transition inline-flex items-center gap-1">
+                                                    <i class="fa-solid fa-eye"></i>View
+                                                </button>
+                                                <button x-on:click="deleteCert(p)" class="bg-red-100 text-red-600 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-red-200 transition inline-flex items-center gap-1">
+                                                    <i class="fa-solid fa-trash-can"></i>Remove
+                                                </button>
+                                            </span>
+                                        </template>
+                                        <template x-if="!p.certificate_file">
+                                            <button x-on:click="$dispatch('open-upload', { id: p.id, name: p.full_name, code: p.participant_code })" class="bg-slate-100 text-slate-500 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-upload"></i>Upload
+                                            </button>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
+                    <template x-if="filteredParticipants.length === 0">
+                        <div class="text-center text-slate-400 py-14">
+                            <div class="w-14 h-14 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                                <i class="fa-solid fa-users-slash text-xl text-slate-300"></i>
+                            </div>
+                            <p class="text-sm font-semibold text-slate-500">No participants found</p>
+                            <p class="text-[11px] mt-1">Try adjusting your search or filters.</p>
+                        </div>
+                    </template>
                 </div>
-
                 <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/40">
-                    <x-table-pagination :paginator="$participants" :with-per-page="false" :compact="true" />
+                    <div class="flex flex-col lg:flex-row items-center justify-between gap-3">
+                        <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${filteredParticipants.length}`"></div>
+                        <div class="flex items-center gap-1">
+                            <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Previous"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
+                            <template x-for="pg in pageNumbers" :key="'pp' + pg">
+                                <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-blue-800 text-white border-blue-800' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
+                            </template>
+                            <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Next"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         {{-- ==================== TRACKER SUB-TAB ==================== --}}
-        <div x-show="activeTab === 'tracker'" x-cloak x-transition class="space-y-6">
+        <div x-data="batchesCrud(@json($batchesAll->getCollection()))" x-show="activeTab === 'tracker'" x-cloak x-transition class="space-y-6">
+            <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
+                 :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+                <span x-text="notice"></span>
+            </div>
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                         <i class="fa-solid fa-list-check text-blue-600"></i> TMD Batch Training Schedule
                     </h3>
                     <div class="flex items-center gap-2">
-                        <button x-data x-on:click="$dispatch('open-modal', 'addBatch')" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                        <button x-on:click="$dispatch('open-modal', 'addBatch')" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
                             <i class="fa-solid fa-plus mr-1"></i>Add Batch
                         </button>
                         <a href="{{ route('export.template', 'tmd-batches') }}" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
@@ -253,6 +258,12 @@
                         <a href="{{ route('export.csv', 'tmd-batches') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
                             <i class="fa-solid fa-file-csv mr-1"></i>Export CSV
                         </a>
+                    </div>
+                </div>
+                <div class="px-4 py-2 mb-3">
+                    <div class="relative max-w-xs">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                        <input type="text" x-model="search" placeholder="Search batches..." class="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -270,37 +281,56 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 font-medium text-slate-700">
-                            @forelse($batchesAll as $b)
-                            <tr class="hover:bg-slate-50 transition">
-                                <td class="px-4 py-3 font-mono text-[11px] font-bold text-blue-700">{{ $b->batch_code }}</td>
-                                <td class="px-4 py-3 font-semibold">{{ $b->course_title }}</td>
-                                <td class="px-4 py-3 text-[11px]">{{ $b->venue }}</td>
-                                <td class="px-4 py-3 text-center font-bold">{{ $b->target_count }}</td>
-                                <td class="px-4 py-3 text-center font-bold">{{ $b->enrolled_count }}</td>
-                                <td class="px-4 py-3 text-[11px]">{{ $b->trainer_name }}</td>
-                                <td class="px-4 py-3 text-[11px]">{{ $b->start_date->format('M d') }} - {{ $b->end_date->format('M d, Y') }}</td>
-                                <td class="px-4 py-3">
-                                    @if($b->status === 'Completed')
-                                    <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Completed</span>
-                                    @elseif($b->status === 'Ongoing')
-                                    <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Ongoing</span>
-                                    @else
-                                    <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Upcoming</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">No batches found.</td></tr>
-                            @endforelse
+                            <template x-for="b in pagedBatches" :key="b.id">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-3 font-mono text-[11px] font-bold text-blue-700" x-text="b.batch_code"></td>
+                                    <td class="px-4 py-3 font-semibold" x-text="b.course_title"></td>
+                                    <td class="px-4 py-3 text-[11px]" x-text="b.venue"></td>
+                                    <td class="px-4 py-3 text-center font-bold" x-text="b.target_count"></td>
+                                    <td class="px-4 py-3 text-center font-bold" x-text="b.enrolled_count"></td>
+                                    <td class="px-4 py-3 text-[11px]" x-text="b.trainer_name"></td>
+                                    <td class="px-4 py-3 text-[11px]" x-text="fmtDateShort(b.start_date) + ' - ' + fmtDate(b.end_date)"></td>
+                                    <td class="px-4 py-3">
+                                        <span x-show="b.status === 'Completed'" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Completed</span>
+                                        <span x-show="b.status === 'Ongoing'" class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Ongoing</span>
+                                        <span x-show="b.status !== 'Completed' && b.status !== 'Ongoing'" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Upcoming</span>
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
+                    <template x-if="filteredBatches.length === 0">
+                        <div class="text-center text-slate-400 py-12 text-xs">No batches found.</div>
+                    </template>
                 </div>
-                <x-table-pagination :paginator="$batchesAll" />
+                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                        <span>Rows per page:</span>
+                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
+                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
+                                <option :value="n" x-text="n"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${filteredBatches.length}`"></div>
+                    <div class="flex items-center gap-1">
+                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
+                        <template x-for="pg in pageNumbers" :key="'bp' + pg">
+                            <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-blue-800 text-white border-blue-800' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
+                        </template>
+                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
+                    </div>
+                </div>
             </div>
         </div>
 
         {{-- ==================== PENETRATION SUB-TAB ==================== --}}
-        <div x-show="activeTab === 'penetration'" x-cloak x-transition x-effect="if (activeTab === 'penetration') { setTimeout(buildTmdCharts, 60); }" class="space-y-6">
+        <div x-data="penetrationCrud(@json($penetration))" x-show="activeTab === 'penetration'" x-cloak x-transition x-effect="if (activeTab === 'penetration') { setTimeout(buildTmdCharts, 60); }" class="space-y-6">
+            <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
+                 :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+                <span x-text="notice"></span>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4">
@@ -338,8 +368,8 @@
                         <i class="fa-solid fa-venus-mars text-blue-700"></i> Gender-Based Municipal Penetration
                     </h3>
                     <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-slate-400 font-medium">{{ $penetration->count() }} municipalities</span>
-                        <button x-data x-on:click="$dispatch('open-modal', 'addPenetration')" class="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                        <span class="text-[10px] text-slate-400 font-medium" x-text="rows.length + ' municipalities'"></span>
+                        <button x-on:click="$dispatch('open-modal', 'addPenetration')" class="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
                             <i class="fa-solid fa-plus mr-1"></i>Add Penetration
                         </button>
                     </div>
@@ -355,42 +385,62 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
-                            @forelse($penetrationRows as $row)
-                            <tr class="hover:bg-slate-50 transition">
-                                <td class="px-4 py-3 font-semibold">{{ $row->municipality }}</td>
-                                <td class="px-4 py-3 text-center font-mono text-blue-700">{{ $row->male }}</td>
-                                <td class="px-4 py-3 text-center font-mono text-pink-700">{{ $row->female }}</td>
-                                <td class="px-4 py-3 text-center font-mono font-bold text-slate-800">{{ $row->total }}</td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="4" class="px-4 py-12 text-center text-slate-400">No penetration data available.</td>
-                            </tr>
-                            @endforelse
+                            <template x-for="row in pagedRows" :key="row.id">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-3 font-semibold" x-text="row.municipality"></td>
+                                    <td class="px-4 py-3 text-center font-mono text-blue-700" x-text="row.male"></td>
+                                    <td class="px-4 py-3 text-center font-mono text-pink-700" x-text="row.female"></td>
+                                    <td class="px-4 py-3 text-center font-mono font-bold text-slate-800" x-text="row.total"></td>
+                                </tr>
+                            </template>
                         </tbody>
                         <tfoot class="bg-slate-100 font-bold text-slate-800 text-xs">
                             <tr>
                                 <td class="px-4 py-3 uppercase tracking-wider">Grand Total</td>
-                                <td class="px-4 py-3 text-center font-mono text-blue-700">{{ $penetrationGrandMale }}</td>
-                                <td class="px-4 py-3 text-center font-mono text-pink-700">{{ $penetrationGrandFemale }}</td>
-                                <td class="px-4 py-3 text-center font-mono">{{ $penetrationGrandTotal }}</td>
+                                <td class="px-4 py-3 text-center font-mono text-blue-700" x-text="grandMale"></td>
+                                <td class="px-4 py-3 text-center font-mono text-pink-700" x-text="grandFemale"></td>
+                                <td class="px-4 py-3 text-center font-mono" x-text="grandTotal"></td>
                             </tr>
                         </tfoot>
                     </table>
+                    <template x-if="rows.length === 0">
+                        <div class="text-center text-slate-400 py-12 text-xs">No penetration data available.</div>
+                    </template>
                 </div>
-                <x-table-pagination :paginator="$penetrationRows" />
+                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                        <span>Rows per page:</span>
+                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
+                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
+                                <option :value="n" x-text="n"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${rows.length}`"></div>
+                    <div class="flex items-center gap-1">
+                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
+                        <template x-for="pg in pageNumbers" :key="'pen' + pg">
+                            <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-blue-800 text-white border-blue-800' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
+                        </template>
+                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
+                    </div>
+                </div>
             </div>
         </div>
 
         {{-- ==================== HUB SUB-TAB ==================== --}}
-        <div x-show="activeTab === 'hub'" x-cloak x-transition class="space-y-6">
+        <div x-data="coursesCrud(@json($allCourses->getCollection()))" x-show="activeTab === 'hub'" x-cloak x-transition class="space-y-6">
+            <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
+                 :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+                <span x-text="notice"></span>
+            </div>
             @php
                 $coursesCount = \App\Models\Course::count();
                 $trainersCount = \App\Models\Trainer::where('status', 'Active')->count();
                 $avgHours = \App\Models\Course::avg('duration_hours') ? round(\App\Models\Course::avg('duration_hours')) : 0;
                 $certsCount = \App\Models\Course::sum(DB::raw('JSON_LENGTH(credentials)'));
             @endphp
-
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
                     <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs w-fit mb-2"><i class="fa-solid fa-book text-lg"></i></div>
@@ -421,7 +471,11 @@
                         Offered Courses Registry
                     </h3>
                     <div class="flex items-center gap-2">
-                        <button x-data x-on:click="$dispatch('open-modal', 'addCourse')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" x-model="search" placeholder="Search courses..." class="w-52 pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <button x-on:click="$dispatch('open-modal', 'addCourse')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
                             <i class="fa-solid fa-plus mr-1"></i>Add Course
                         </button>
                         <a href="{{ route('export.csv', 'tmd-courses') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
@@ -445,46 +499,55 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
-                            @forelse($allCourses as $c)
-                            <tr class="hover:bg-slate-50/50 transition">
-                                <td class="px-5 py-3 font-mono text-[11px] font-bold text-indigo-700">{{ $c->course_code }}</td>
-                                <td class="px-5 py-3 font-semibold">{{ $c->title }}</td>
-                                <td class="px-5 py-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">{{ $c->specialty_track }}</span></td>
-                                <td class="px-5 py-3 text-[11px]">{{ $c->format_type }}</td>
-                                <td class="px-5 py-3 text-center font-bold">{{ $c->duration_hours }}h</td>
-                                <td class="px-5 py-3 text-[10px] text-slate-500">{{ implode(', ', $c->credentials ?? []) }}</td>
-                                <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-700">{{ $c->live_runs_completed }}/{{ $c->live_runs_total }}</td>
-                                <td class="px-5 py-3 text-center">
-                                    @if($c->reference_folders)
-                                    <a href="{{ $c->reference_folders }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-[10px] font-semibold"><i class="fa-solid fa-folder-open mr-1"></i>View</a>
-                                    @else
-                                    <span class="text-slate-400 text-[10px]">-</span>
-                                    @endif
-                                </td>
-                                <td class="px-5 py-3 text-center">
-                                    @php
-                                        $cData = $c->toArray();
-                                        $cData['credentials'] = is_array($c->credentials) ? implode(', ', $c->credentials) : $c->credentials;
-                                    @endphp
-                                    <button data-course="{{ json_encode($cData) }}" x-on:click="$dispatch('edit-course', { course: JSON.parse($el.dataset.course) })" class="text-indigo-600 hover:text-indigo-800 mx-1" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <form method="POST" action="{{ route('tmd.courses.destroy', $c) }}" class="inline" onsubmit="return confirm('Delete this course?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="text-red-500 hover:text-red-700 mx-1" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
-                                    </form>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="9" class="px-5 py-12 text-center text-slate-400">No courses found.</td></tr>
-                            @endforelse
+                            <template x-for="c in pagedCourses" :key="c.id">
+                                <tr class="hover:bg-slate-50/50 transition">
+                                    <td class="px-5 py-3 font-mono text-[11px] font-bold text-indigo-700" x-text="c.course_code"></td>
+                                    <td class="px-5 py-3 font-semibold" x-text="c.title"></td>
+                                    <td class="px-5 py-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold" x-text="c.specialty_track"></span></td>
+                                    <td class="px-5 py-3 text-[11px]" x-text="c.format_type"></td>
+                                    <td class="px-5 py-3 text-center font-bold" x-text="c.duration_hours + 'h'"></td>
+                                    <td class="px-5 py-3 text-[10px] text-slate-500" x-text="Array.isArray(c.credentials) ? c.credentials.join(', ') : (c.credentials || '')"></td>
+                                    <td class="px-5 py-3 text-center font-mono text-[11px] text-slate-700" x-text="c.live_runs_completed + '/' + c.live_runs_total"></td>
+                                    <td class="px-5 py-3 text-center">
+                                        <template x-if="c.reference_folders">
+                                            <a :href="c.reference_folders" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-[10px] font-semibold"><i class="fa-solid fa-folder-open mr-1"></i>View</a>
+                                        </template>
+                                        <template x-if="!c.reference_folders">
+                                            <span class="text-slate-400 text-[10px]">-</span>
+                                        </template>
+                                    </td>
+                                    <td class="px-5 py-3 text-center">
+                                        <button x-on:click="$dispatch('edit-course', { course: c })" class="text-indigo-600 hover:text-indigo-800 mx-1" title="Edit"><i class="fa-solid fa-pen-to-square"></i></button>
+                                        <button x-on:click="deleteCourse(c)" class="text-red-500 hover:text-red-700 mx-1" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
+                    <template x-if="filteredCourses.length === 0">
+                        <div class="text-center text-slate-400 py-12 text-xs">No courses found.</div>
+                    </template>
                 </div>
-                <div class="px-5 pb-5">
-                    <x-table-pagination :paginator="$allCourses" />
+                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                        <span>Rows per page:</span>
+                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500">
+                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
+                                <option :value="n" x-text="n"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${filteredCourses.length}`"></div>
+                    <div class="flex items-center gap-1">
+                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
+                        <template x-for="pg in pageNumbers" :key="'cp' + pg">
+                            <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
+                        </template>
+                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
-
         {{-- ==================== TRAINER PROFILE SUB-TAB (BACKEND CRUD) ==================== --}}
         @php
             $trainerProfiles = $trainers->map(fn ($t) => [
@@ -743,13 +806,33 @@
             </div>
         </div>
     </div>
-    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addParticipant')" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    {{-- ==================== ADD PARTICIPANT MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false,
+        async addParticipant(form) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(form);
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.participants.store') }}', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to register participant.');
+                window.dispatchEvent(new CustomEvent('participant-added', { detail: data.participant }));
+                this.show = false;
+                form.reset();
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:open-modal.window="show = ($event.detail === 'addParticipant')" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="bg-dict-blue text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-user-plus text-amber-400"></i> Register New Participant</h3>
                 <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="addParticipantForm" action="{{ route('tmd.participants.store') }}" method="POST" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0" enctype="multipart/form-data">
+            <form id="addParticipantForm" x-on:submit.prevent="addParticipant($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0" enctype="multipart/form-data">
                 @csrf
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Full Name <span class="text-red-500">*</span></label>
@@ -790,13 +873,13 @@
             </form>
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                <button type="submit" form="addParticipantForm" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-check mr-1"></i> Register Participant</button>
+                <button type="submit" form="addParticipantForm" :disabled="saving" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Register Participant</button>
             </div>
         </div>
     </div>
 
     {{-- ==================== VIEW CERTIFICATE MODAL ==================== --}}
-    <div x-data="{ show: false, participant: null, url: '' }" x-on:open-cert.window="show = true; participant = $event.detail.participant; url = $event.detail.url" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto custom-scrollbar">
+    <div x-data="{ show: false, participant: null, url: '' }" x-on:open-cert.window="show = true; participant = $event.detail.participant; url = $event.detail.url" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto custom-scrollbar">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden my-8">
             <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2 min-w-0"><i class="fa-solid fa-image text-amber-400 shrink-0"></i> Certificate — <span x-text="participant?.full_name" class="text-white/80 truncate"></span></h3>
@@ -811,8 +894,27 @@
         </div>
     </div>
 
-    {{-- ==================== UPLOAD CERTIFICATE MODAL ==================== --}}
-    <div x-data="{ show: false, id: null, name: '', code: '' }" x-on:open-upload.window="show = true; id = $event.detail.id; name = $event.detail.name; code = $event.detail.code" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    {{-- ==================== UPLOAD CERTIFICATE MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false, id: null, name: '', code: '',
+        async uploadCert(form) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(form);
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ url('tmd/participants') }}/' + this.id + '/certificate', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to upload certificate.');
+                window.dispatchEvent(new CustomEvent('certificate-updated', { detail: data.participant }));
+                this.show = false;
+                form.reset();
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:open-upload.window="show = true; id = $event.detail.id; name = $event.detail.name; code = $event.detail.code; saving = false;" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-file-arrow-up text-amber-400"></i> Upload Certificate</h3>
@@ -823,7 +925,7 @@
                     <p class="font-bold text-slate-800 break-words" x-text="name"></p>
                     <p class="text-[11px] text-slate-400 font-mono break-words" x-text="code"></p>
                 </div>
-                <form id="uploadForm" :action="'{{ url('tmd/participants') }}/' + id + '/certificate'" method="POST" enctype="multipart/form-data">
+                <form id="uploadForm" x-on:submit.prevent="uploadCert($el)" enctype="multipart/form-data">
                     @csrf
                     <input type="file" name="certificate_file" accept="image/*" required class="w-full p-2.5 border border-slate-300 rounded-lg text-xs mb-4">
                     <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-[11px] text-blue-700">
@@ -833,19 +935,38 @@
             </div>
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                <button type="submit" form="uploadForm" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-save mr-1"></i> Save Certificate</button>
+                <button type="submit" form="uploadForm" :disabled="saving" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-save mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Certificate</button>
             </div>
         </div>
     </div>
 
-    {{-- ==================== ADD COURSE MODAL ==================== --}}
-    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addCourse')" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    {{-- ==================== ADD COURSE MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false,
+        async addCourse(form) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(form);
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.courses.store') }}', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to add course.');
+                window.dispatchEvent(new CustomEvent('course-added', { detail: data.course }));
+                this.show = false;
+                form.reset();
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:open-modal.window="show = ($event.detail === 'addCourse')" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="bg-indigo-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-graduation-cap text-amber-400"></i> Add New Course</h3>
                 <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="addCourseForm" action="{{ route('tmd.courses.store') }}" method="POST" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+            <form id="addCourseForm" x-on:submit.prevent="addCourse($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
                 @csrf
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -892,19 +1013,38 @@
             </form>
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                <button type="submit" form="addCourseForm" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-check mr-1"></i> Save Course</button>
+                <button type="submit" form="addCourseForm" :disabled="saving" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Course</button>
             </div>
         </div>
     </div>
 
-    {{-- ==================== ADD BATCH MODAL ==================== --}}
-    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addBatch')" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    {{-- ==================== ADD BATCH MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false,
+        async addBatch(form) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(form);
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.batches.store') }}', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to add batch.');
+                window.dispatchEvent(new CustomEvent('batch-added', { detail: data.batch }));
+                this.show = false;
+                form.reset();
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:open-modal.window="show = ($event.detail === 'addBatch')" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="bg-blue-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-400"></i> Add New Training Batch</h3>
                 <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="addBatchForm" action="{{ route('tmd.batches.store') }}" method="POST" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+            <form id="addBatchForm" x-on:submit.prevent="addBatch($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
                 @csrf
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Course Title <span class="text-red-500">*</span></label>
@@ -949,19 +1089,38 @@
             </form>
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                <button type="submit" form="addBatchForm" class="bg-blue-800 hover:bg-blue-700 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-check mr-1"></i> Save Batch</button>
+                <button type="submit" form="addBatchForm" :disabled="saving" class="bg-blue-800 hover:bg-blue-700 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Batch</button>
             </div>
         </div>
     </div>
 
-    {{-- ==================== ADD PENETRATION MODAL ==================== --}}
-    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addPenetration')" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    {{-- ==================== ADD PENETRATION MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false,
+        async addPenetration(form) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(form);
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.penetration.store') }}', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to add penetration record.');
+                window.dispatchEvent(new CustomEvent('penetration-added', { detail: data.record }));
+                this.show = false;
+                form.reset();
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:open-modal.window="show = ($event.detail === 'addPenetration')" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="bg-purple-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-venus-mars text-amber-400"></i> Add Municipal Penetration</h3>
                 <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="addPenetrationForm" action="{{ route('tmd.penetration.store') }}" method="POST" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+            <form id="addPenetrationForm" x-on:submit.prevent="addPenetration($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
                 @csrf
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Municipality <span class="text-red-500">*</span></label>
@@ -983,20 +1142,39 @@
             </form>
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                <button type="submit" form="addPenetrationForm" class="bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-check mr-1"></i> Save Penetration</button>
+                <button type="submit" form="addPenetrationForm" :disabled="saving" class="bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Penetration</button>
             </div>
         </div>
     </div>
 
-    {{-- ==================== EDIT COURSE MODAL ==================== --}}
-    <div x-data="{ show: false, cid: null, ccode: '', ctitle: '', ctrack: '', cformat: '', cduration: 0, ccreds: '', crunsc: 0, crunst: 0, cfolder: '' }" x-on:edit-course.window="show = true; cid = $event.detail.course.id; ccode = $event.detail.course.course_code; ctitle = $event.detail.course.title; ctrack = $event.detail.course.specialty_track; cformat = $event.detail.course.format_type; cduration = $event.detail.course.duration_hours; ccreds = $event.detail.course.credentials; crunsc = $event.detail.course.live_runs_completed; crunst = $event.detail.course.live_runs_total; cfolder = $event.detail.course.reference_folders || ''" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    {{-- ==================== EDIT COURSE MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false, cid: null, ccode: '', ctitle: '', ctrack: '', cformat: '', cduration: 0, ccreds: '', crunsc: 0, crunst: 0, cfolder: '',
+        async updateCourse(form) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(form);
+                fd.append('_method', 'PUT');
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ url('tmd/courses') }}/' + this.cid, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to update course.');
+                window.dispatchEvent(new CustomEvent('course-updated', { detail: data.course }));
+                this.show = false;
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:edit-course.window="show = true; cid = $event.detail.course.id; ccode = $event.detail.course.course_code; ctitle = $event.detail.course.title; ctrack = $event.detail.course.specialty_track; cformat = $event.detail.course.format_type; cduration = $event.detail.course.duration_hours; ccreds = Array.isArray($event.detail.course.credentials) ? $event.detail.course.credentials.join(', ') : ($event.detail.course.credentials || ''); crunsc = $event.detail.course.live_runs_completed; crunst = $event.detail.course.live_runs_total; cfolder = $event.detail.course.reference_folders || ''; saving = false;" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
             <div class="bg-indigo-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
                 <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-amber-400"></i> Edit Course</h3>
                 <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="editCourseForm" method="POST" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0" x-bind:action="'{{ url('tmd/courses') }}/' + cid">
-                @csrf @method('PUT')
+            <form id="editCourseForm" x-on:submit.prevent="updateCourse($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                @csrf
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Course Code <span class="text-red-500">*</span></label>
@@ -1042,7 +1220,7 @@
             </form>
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                <button type="submit" form="editCourseForm" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs"><i class="fa-solid fa-save mr-1"></i> Update Course</button>
+                <button type="submit" form="editCourseForm" :disabled="saving" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-save mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Update Course</button>
             </div>
         </div>
     </div>
@@ -1050,6 +1228,213 @@
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script>
+    window._fmtDate = function(d) {
+        if (!d) return '-';
+        try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(e) { return d; }
+    };
+    window._fmtDateShort = function(d) {
+        if (!d) return '-';
+        try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch(e) { return d; }
+    };
+
+    window.participantsCrud = function(seed) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const destroyCertUrl = '{{ route("tmd.participants.certificate.delete", ["participant" => "__ID__"]) }}';
+        return {
+            participants: seed,
+            search: '', batchFilter: '', certFilter: '',
+            saving: false, notice: '', noticeType: 'success',
+            page: 1, perPage: 5,
+            get filteredParticipants() {
+                const q = this.search.trim().toLowerCase();
+                return this.participants.filter(p => {
+                    const batch = p.trainingBatch || {};
+                    const haystack = [p.full_name, p.municipality, p.agency_sector, p.participant_code, batch.batch_code || '', batch.course_title || ''].join(' ').toLowerCase();
+                    const matchQ = !q || haystack.includes(q);
+                    const matchB = !this.batchFilter || String(p.training_batch_id) === this.batchFilter;
+                    const matchC = !this.certFilter ||
+                        (this.certFilter === 'Uploaded' && p.certificate_file) ||
+                        (this.certFilter === 'Pending' && p.completion_status === 'Pending') ||
+                        (this.certFilter === 'Ongoing' && p.completion_status === 'Ongoing');
+                    return matchQ && matchB && matchC;
+                });
+            },
+            get batchOptions() {
+                const map = new Map();
+                this.participants.forEach(p => {
+                    const tb = p.trainingBatch;
+                    if (tb && !map.has(String(tb.id))) map.set(String(tb.id), tb);
+                });
+                return [...map.values()];
+            },
+            get totalPages() { return Math.max(1, Math.ceil(this.filteredParticipants.length / this.perPage)); },
+            get pageNumbers() {
+                const total = this.totalPages, current = this.page, start = Math.max(1, current - 2), end = Math.min(total, start + 4), pages = [];
+                for (let p = start; p <= end; p++) pages.push(p);
+                return pages;
+            },
+            get pageFrom() { return this.filteredParticipants.length === 0 ? 0 : (this.page - 1) * this.perPage + 1; },
+            get pageTo() { return Math.min(this.page * this.perPage, this.filteredParticipants.length); },
+            get pagedParticipants() {
+                if (this.page > this.totalPages) this.page = this.totalPages;
+                const s = (this.page - 1) * this.perPage;
+                return this.filteredParticipants.slice(s, s + this.perPage);
+            },
+            setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
+            fmtDate(d) { return window._fmtDate(d); },
+            flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
+            init() {
+                ['search','batchFilter','certFilter'].forEach(k => this.$watch(k, () => this.page = 1));
+                window.addEventListener('participant-added', (e) => {
+                    this.participants.unshift(e.detail);
+                    this.flash('Participant registered successfully.');
+                });
+                window.addEventListener('certificate-updated', (e) => {
+                    const idx = this.participants.findIndex(p => p.id === e.detail.id);
+                    if (idx > -1) this.participants[idx] = { ...this.participants[idx], ...e.detail };
+                    this.flash('Certificate uploaded successfully.');
+                });
+            },
+            async deleteCert(p) {
+                if (!confirm('Remove this certificate?')) return;
+                try {
+                    const url = destroyCertUrl.replace('__ID__', p.id);
+                    const res = await fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed.');
+                    const idx = this.participants.findIndex(x => x.id === p.id);
+                    if (idx > -1) this.participants[idx].certificate_file = null;
+                    this.flash('Certificate removed.');
+                } catch(e) { this.flash(e.message, 'error'); }
+            },
+        };
+    };
+
+    window.batchesCrud = function(seed) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        return {
+            batches: seed,
+            page: 1, perPage: 10,
+            search: '',
+            notice: '', noticeType: 'success',
+            get filteredBatches() {
+                const q = this.search.trim().toLowerCase();
+                return this.batches.filter(b => !q || [b.batch_code, b.course_title, b.venue, b.trainer_name].join(' ').toLowerCase().includes(q));
+            },
+            get totalPages() { return Math.max(1, Math.ceil(this.filteredBatches.length / this.perPage)); },
+            get pageNumbers() {
+                const total = this.totalPages, current = this.page, start = Math.max(1, current - 2), end = Math.min(total, start + 4), pages = [];
+                for (let p = start; p <= end; p++) pages.push(p);
+                return pages;
+            },
+            get pageFrom() { return this.filteredBatches.length === 0 ? 0 : (this.page - 1) * this.perPage + 1; },
+            get pageTo() { return Math.min(this.page * this.perPage, this.filteredBatches.length); },
+            get pagedBatches() {
+                if (this.page > this.totalPages) this.page = this.totalPages;
+                const s = (this.page - 1) * this.perPage;
+                return this.filteredBatches.slice(s, s + this.perPage);
+            },
+            setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
+            fmtDate(d) { return window._fmtDate(d); },
+            fmtDateShort(d) { return window._fmtDateShort(d); },
+            flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
+            init() {
+                this.$watch('search', () => this.page = 1);
+                window.addEventListener('batch-added', (e) => {
+                    this.batches.unshift(e.detail);
+                    this.flash('Training batch added successfully.');
+                });
+            },
+        };
+    };
+
+    window.penetrationCrud = function(seed) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        return {
+            rows: seed,
+            page: 1, perPage: 10,
+            notice: '', noticeType: 'success',
+            get grandMale() { return this.rows.reduce((s, r) => s + (r.male || 0), 0); },
+            get grandFemale() { return this.rows.reduce((s, r) => s + (r.female || 0), 0); },
+            get grandTotal() { return this.rows.reduce((s, r) => s + (r.total || 0), 0); },
+            get totalPages() { return Math.max(1, Math.ceil(this.rows.length / this.perPage)); },
+            get pageNumbers() {
+                const total = this.totalPages, current = this.page, start = Math.max(1, current - 2), end = Math.min(total, start + 4), pages = [];
+                for (let p = start; p <= end; p++) pages.push(p);
+                return pages;
+            },
+            get pageFrom() { return this.rows.length === 0 ? 0 : (this.page - 1) * this.perPage + 1; },
+            get pageTo() { return Math.min(this.page * this.perPage, this.rows.length); },
+            get pagedRows() {
+                if (this.page > this.totalPages) this.page = this.totalPages;
+                const s = (this.page - 1) * this.perPage;
+                return this.rows.slice(s, s + this.perPage);
+            },
+            setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
+            flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
+            init() {
+                window.addEventListener('penetration-added', (e) => {
+                    this.rows.push(e.detail);
+                    this.flash('Penetration record added successfully.');
+                });
+            },
+        };
+    };
+
+    window.coursesCrud = function(seed) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const destroyUrl = '{{ url("tmd/courses") }}/__ID__';
+        return {
+            courses: seed,
+            page: 1, perPage: 10,
+            search: '',
+            notice: '', noticeType: 'success',
+            get filteredCourses() {
+                const q = this.search.trim().toLowerCase();
+                return this.courses.filter(c => !q || [c.course_code, c.title, c.specialty_track, c.format_type].join(' ').toLowerCase().includes(q));
+            },
+            get totalPages() { return Math.max(1, Math.ceil(this.filteredCourses.length / this.perPage)); },
+            get pageNumbers() {
+                const total = this.totalPages, current = this.page, start = Math.max(1, current - 2), end = Math.min(total, start + 4), pages = [];
+                for (let p = start; p <= end; p++) pages.push(p);
+                return pages;
+            },
+            get pageFrom() { return this.filteredCourses.length === 0 ? 0 : (this.page - 1) * this.perPage + 1; },
+            get pageTo() { return Math.min(this.page * this.perPage, this.filteredCourses.length); },
+            get pagedCourses() {
+                if (this.page > this.totalPages) this.page = this.totalPages;
+                const s = (this.page - 1) * this.perPage;
+                return this.filteredCourses.slice(s, s + this.perPage);
+            },
+            setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
+            flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
+            init() {
+                this.$watch('search', () => this.page = 1);
+                window.addEventListener('course-added', (e) => {
+                    this.courses.push(e.detail);
+                    this.flash('Course added successfully.');
+                });
+                window.addEventListener('course-updated', (e) => {
+                    const idx = this.courses.findIndex(c => c.id === e.detail.id);
+                    if (idx > -1) this.courses[idx] = e.detail;
+                    this.flash('Course updated successfully.');
+                });
+            },
+            async deleteCourse(c) {
+                if (!confirm('Delete this course?')) return;
+                try {
+                    const res = await fetch(destroyUrl.replace('__ID__', c.id), {
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' }
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed to delete course.');
+                    this.courses = this.courses.filter(x => x.id !== c.id);
+                    this.flash('Course deleted.');
+                } catch(e) { this.flash(e.message, 'error'); }
+            },
+        };
+    };
     window.trainerCrud = function() {
         const seed = @json($trainerProfiles);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';

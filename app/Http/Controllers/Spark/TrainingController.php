@@ -52,11 +52,14 @@ class TrainingController extends Controller
             'status' => 'required|in:Upcoming,Ongoing,Completed',
         ]);
 
-        SparkTraining::create($request->only([
+        $training = SparkTraining::create($request->only([
             'track_id', 'specialization', 'master_trainer',
             'enrolled_count', 'budget_allocated', 'industry_partner', 'status',
         ]));
 
+        if ($request->wantsJson()) {
+            return response()->json(['training' => $training], 201);
+        }
         return redirect()->route('spark.trainings.index')->with('success', 'SPARK training added successfully.');
     }
 
@@ -76,12 +79,19 @@ class TrainingController extends Controller
             'budget_allocated', 'industry_partner', 'status',
         ]));
 
+        if ($request->wantsJson()) {
+            return response()->json(['training' => $training->fresh()]);
+        }
         return redirect()->route('spark.trainings.index')->with('success', 'Training updated.');
     }
 
     public function destroy(SparkTraining $training)
     {
         $training->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Training removed.']);
+        }
         return redirect()->route('spark.trainings.index')->with('success', 'Training removed.');
     }
 }

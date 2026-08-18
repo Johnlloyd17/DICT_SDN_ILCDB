@@ -246,7 +246,7 @@ class VisitorController extends Controller
         $lastId = DtcVisitorLog::max('id') ?? 0;
         $code = 'DTC-' . date('Y') . '-' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
 
-        DtcVisitorLog::create([
+        $visitor = DtcVisitorLog::create([
             'log_code' => $code,
             'visitor_name' => $request->visitor_name,
             'gender' => $request->gender,
@@ -258,6 +258,9 @@ class VisitorController extends Controller
             'visit_date' => $request->visit_date ?: now(),
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['visitor' => $visitor], 201);
+        }
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor session recorded successfully.');
     }
@@ -287,6 +290,9 @@ class VisitorController extends Controller
             'visit_date' => $request->visit_date ?: $visitor->visit_date,
         ]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['visitor' => $visitor->fresh()]);
+        }
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor log updated successfully.');
     }
@@ -295,6 +301,9 @@ class VisitorController extends Controller
     {
         $visitor->delete();
 
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Visitor log removed.']);
+        }
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor log removed.');
     }

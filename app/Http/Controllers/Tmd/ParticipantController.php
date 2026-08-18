@@ -101,8 +101,12 @@ class ParticipantController extends Controller
             $data['certificate_file'] = $request->file('certificate_file')->store('certificates', 'public');
         }
 
-        Participant::create($data);
+        $participant = Participant::create($data);
 
+        if ($request->wantsJson()) {
+            $participant->load('trainingBatch');
+            return response()->json(['participant' => $participant], 201);
+        }
         return redirect()->route('tmd.participants.index')->with('success', 'Participant registered successfully.');
     }
 
@@ -142,6 +146,10 @@ class ParticipantController extends Controller
             Storage::disk('public')->delete($participant->certificate_file);
         }
         $participant->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Participant removed.']);
+        }
         return redirect()->route('tmd.participants.index')->with('success', 'Participant removed.');
     }
 
@@ -158,6 +166,9 @@ class ParticipantController extends Controller
         $path = $request->file('certificate_file')->store('certificates', 'public');
         $participant->update(['certificate_file' => $path]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['participant' => $participant->fresh()]);
+        }
         return redirect()->route('tmd.participants.index')->with('success', 'Certificate uploaded.');
     }
 
@@ -168,6 +179,9 @@ class ParticipantController extends Controller
             $participant->update(['certificate_file' => null]);
         }
 
+        if (request()->wantsJson()) {
+            return response()->json(['participant' => $participant->fresh()]);
+        }
         return redirect()->route('tmd.participants.index')->with('success', 'Certificate removed.');
     }
 }

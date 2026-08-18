@@ -108,8 +108,11 @@ class FundingController extends Controller
             'status' => 'required|in:Disbursed,Obligated,Pending',
         ]);
 
-        FundingRecord::create($request->all());
+        $record = FundingRecord::create($request->all());
 
+        if ($request->wantsJson()) {
+            return response()->json(['record' => $record], 201);
+        }
         return redirect()->route('funding.index')->with('success', 'Funding record added successfully.');
     }
 
@@ -129,12 +132,19 @@ class FundingController extends Controller
 
         $funding->update($request->all());
 
+        if ($request->wantsJson()) {
+            return response()->json(['record' => $funding->fresh()]);
+        }
         return redirect()->route('funding.index')->with('success', 'Funding record updated.');
     }
 
     public function destroy(FundingRecord $funding)
     {
         $funding->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Funding record deleted.']);
+        }
         return redirect()->route('funding.index')->with('success', 'Funding record deleted.');
     }
 }
