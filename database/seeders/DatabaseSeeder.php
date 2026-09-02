@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            UserSeeder::class,
             DtcHubSeeder::class,
             DtcVisitorLogSeeder::class,
             CourseSeeder::class,
@@ -23,6 +24,7 @@ class DatabaseSeeder extends Seeder
             SparkTraineeSeeder::class,
             ClickDeviceSeeder::class,
             TmdPenetrationSeeder::class,
+            DtcCenterInventorySeeder::class,
         ]);
     }
 }

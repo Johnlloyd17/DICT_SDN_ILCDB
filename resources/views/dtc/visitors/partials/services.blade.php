@@ -360,7 +360,7 @@
         try {
             const res = await fetch('{{ url('dtc/centers') }}/' + id, {
                 method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (res.ok) {
                 this.allSdnCenters = this.allSdnCenters.filter(c => c.id !== id);
@@ -377,7 +377,7 @@
         try {
             const res = await fetch('{{ route('dtc.centers.batchDelete') }}', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: this.selectedIds })
             });
             if (res.ok) {
