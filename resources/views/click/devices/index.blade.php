@@ -86,7 +86,7 @@
     </div>
 
     {{-- DEVICES TABLE --}}
-    <div x-data="clickDevicesCrud(@json($seedDevices))" x-on:device-added.window="devices.unshift($event.detail)" x-on:device-updated.window="const idx = devices.findIndex(x => x.id === $event.detail.id); if (idx > -1) devices[idx] = $event.detail;" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+    <div x-data="clickDevicesCrud({{ json_encode($seedDevices, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" x-on:device-added.window="devices.unshift($event.detail)" x-on:device-updated.window="const idx = devices.findIndex(x => x.id === $event.detail.id); if (idx > -1) devices[idx] = $event.detail;" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
         {{-- Flash notice --}}
         <template x-if="notice">
             <div :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="border rounded-lg px-4 py-2.5 text-xs font-semibold flex items-center gap-2" x-transition>

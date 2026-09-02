@@ -109,8 +109,8 @@
 
 {{-- VISITOR LOGS TABLE --}}
 <div x-data="{
-    allVisitors: @json($visitors->items()),
-    hubsMap: @json($hubs->pluck('name', 'id')->toArray()),
+    allVisitors: {{ json_encode($visitors->items(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
+    hubsMap: {{ json_encode($hubs->pluck('name', 'id')->toArray(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
     search: '{{ request('v_search', '') }}',
     filterHub: '{{ request('hub', 'ALL') }}',
     filterDemo: '{{ request('demo', 'ALL') }}',

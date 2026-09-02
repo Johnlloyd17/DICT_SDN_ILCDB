@@ -289,7 +289,7 @@
 
 {{-- SDN Overview & Management Views --}}
 <div x-data="{
-    allSdnCenters: @json($sdnCenters->items()),
+    allSdnCenters: {{ json_encode($sdnCenters->items(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
     filterMuni: '{{ request('muni', 'ALL') }}',
     filterOperational: '{{ request('s_operational', 'ALL') }}',
     filterConnectivity: '{{ request('connectivity', 'ALL') }}',
@@ -300,8 +300,8 @@
     selectedIds: [],
     deleting: null,
     deletingBatch: false,
-    hubMunicipalities: @json($hubMunicipalities),
-    districtStats: @json($districtStats),
+    hubMunicipalities: {{ json_encode($hubMunicipalities, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
+    districtStats: {{ json_encode($districtStats, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
 
     get filtered() {
         let items = [...this.allSdnCenters];
@@ -360,7 +360,7 @@
         try {
             const res = await fetch('{{ url('dtc/centers') }}/' + id, {
                 method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (res.ok) {
                 this.allSdnCenters = this.allSdnCenters.filter(c => c.id !== id);
@@ -377,7 +377,7 @@
         try {
             const res = await fetch('{{ route('dtc.centers.batchDelete') }}', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: this.selectedIds })
             });
             if (res.ok) {

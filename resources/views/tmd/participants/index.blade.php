@@ -50,7 +50,7 @@
         </div>
 
         {{-- ==================== PARTICIPANTS SUB-TAB ==================== --}}
-        <div x-data="participantsCrud(@json($participants->getCollection()))" x-show="activeTab === 'participants'" x-cloak x-transition class="space-y-6">
+        <div x-data="participantsCrud({{ json_encode($participants->getCollection(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" x-show="activeTab === 'participants'" x-cloak x-transition class="space-y-6">
             <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
                  :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
                 <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
@@ -237,7 +237,7 @@
         </div>
 
         {{-- ==================== TRACKER SUB-TAB ==================== --}}
-        <div x-data="batchesCrud(@json($batchesAll->getCollection()))" x-show="activeTab === 'tracker'" x-cloak x-transition class="space-y-6">
+        <div x-data="batchesCrud({{ json_encode($batchesAll->getCollection(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" x-show="activeTab === 'tracker'" x-cloak x-transition class="space-y-6">
             <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
                  :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
                 <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
@@ -325,7 +325,7 @@
         </div>
 
         {{-- ==================== PENETRATION SUB-TAB ==================== --}}
-        <div x-data="penetrationCrud(@json($penetration))" x-show="activeTab === 'penetration'" x-cloak x-transition x-effect="if (activeTab === 'penetration') { setTimeout(buildTmdCharts, 60); }" class="space-y-6">
+        <div x-data="penetrationCrud({{ json_encode($penetration, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" x-show="activeTab === 'penetration'" x-cloak x-transition x-effect="if (activeTab === 'penetration') { setTimeout(buildTmdCharts, 60); }" class="space-y-6">
             <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
                  :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
                 <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
@@ -429,7 +429,7 @@
         </div>
 
         {{-- ==================== HUB SUB-TAB ==================== --}}
-        <div x-data="coursesCrud(@json($allCourses->getCollection()))" x-show="activeTab === 'hub'" x-cloak x-transition class="space-y-6">
+        <div x-data="coursesCrud({{ json_encode($allCourses->getCollection(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" x-show="activeTab === 'hub'" x-cloak x-transition class="space-y-6">
             <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2"
                  :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
                 <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>

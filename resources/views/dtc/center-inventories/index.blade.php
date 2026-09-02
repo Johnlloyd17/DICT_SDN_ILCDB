@@ -4,7 +4,7 @@
     @endpush
     @php $seedCenters = $centers->getCollection(); @endphp
 
-    <div x-data="centersCrud(@json($seedCenters))" x-on:center-added.window="addCenter($event.detail)" x-on:center-updated.window="updateCenter($event.detail)">
+    <div x-data="centersCrud({{ json_encode($seedCenters, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" x-on:center-added.window="addCenter($event.detail)" x-on:center-updated.window="updateCenter($event.detail)">
     <div class="bg-gradient-to-r from-cyan-900 via-teal-900 to-dict-blue text-white rounded-xl p-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
             <h2 class="text-xl font-bold flex items-center gap-2">

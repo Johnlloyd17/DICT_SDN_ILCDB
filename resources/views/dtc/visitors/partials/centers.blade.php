@@ -52,7 +52,7 @@
 
 {{-- TABLE SECTION --}}
 <div x-data="{
-    allCenters: @json($centers->items()),
+    allCenters: {{ json_encode($centers->items(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
     selectedIds: [],
     search: '{{ request('c_search', '') }}',
     filterMunicipality: '{{ request('municipality', 'ALL') }}',
@@ -118,7 +118,7 @@
         try {
             const res = await fetch('{{ url('dtc/centers') }}/' + id, {
                 method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (res.ok) {
                 this.allCenters = this.allCenters.filter(c => c.id !== id);
@@ -135,7 +135,7 @@
         try {
             const res = await fetch('{{ route('dtc.centers.batchDelete') }}', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: this.selectedIds })
             });
             if (res.ok) {

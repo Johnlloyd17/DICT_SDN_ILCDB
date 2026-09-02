@@ -179,7 +179,7 @@
 
     {{-- FINANCIAL LEDGER TABLE --}}
     @php $seedRecords = $records->getCollection()->values(); @endphp
-    <div x-data="fundingCrud(@json($seedRecords))" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <div x-data="fundingCrud({{ json_encode($seedRecords, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }})" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         {{-- FLASH NOTICE --}}
         <div x-show="notice" x-cloak x-transition class="rounded-xl px-4 py-3 text-xs font-bold border shadow-sm flex items-center gap-2 mb-4"
              :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
@@ -270,78 +270,78 @@
                 </template>
                 <button x-on:click="page++" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
             </div>
-        </div>
-    </div>
-
-    {{-- ADD FUNDING MODAL --}}
-    <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addFunding')" x-on:close-modal.window="if ($event.detail === 'addFunding') show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full overflow-x-hidden overflow-y-auto border border-slate-200 max-h-[90vh] custom-scrollbar">
-            <div class="bg-dict-blue text-white px-6 py-4 flex items-center justify-between">
-                <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-sack-dollar text-yellow-400"></i> Add Funding Record</h3>
-                <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <form id="addFundingForm" x-on:submit.prevent="addRecord($event.target)" class="p-6 space-y-4 text-xs">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Project <span class="text-red-500">*</span></label>
-                        <select name="project" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="DWIA-TMD">DWIA-TMD</option>
-                            <option value="DTC HUB">DTC HUB</option>
-                            <option value="SPARK">SPARK</option>
-                            <option value="PROJECT CLICK">PROJECT CLICK</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Voucher # <span class="text-red-500">*</span></label>
-                        <input type="text" name="voucher_ref" required placeholder="e.g. DV-2026-01-012" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
+
+        {{-- ADD FUNDING MODAL --}}
+        <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addFunding')" x-on:close-modal.window="if ($event.detail === 'addFunding') show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full overflow-x-hidden overflow-y-auto border border-slate-200 max-h-[90vh] custom-scrollbar">
+                <div class="bg-dict-blue text-white px-6 py-4 flex items-center justify-between">
+                    <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-sack-dollar text-yellow-400"></i> Add Funding Record</h3>
+                    <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
                 </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
-                    <textarea name="description" required rows="2" placeholder="e.g. Training Materials & Honoraria" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
-                        <select name="expense_category" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="MOOE - Training & Seminars">MOOE - Training & Seminars</option>
-                            <option value="Supplies & Logistics">Supplies & Logistics</option>
-                            <option value="Honorarium & Consultancy">Honorarium & Consultancy</option>
-                            <option value="Capital Outlay - Equipment">Capital Outlay - Equipment</option>
-                        </select>
+                <form id="addFundingForm" x-on:submit.prevent="addRecord($event.target)" class="p-6 space-y-4 text-xs">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Project <span class="text-red-500">*</span></label>
+                            <select name="project" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="DWIA-TMD">DWIA-TMD</option>
+                                <option value="DTC HUB">DTC HUB</option>
+                                <option value="SPARK">SPARK</option>
+                                <option value="PROJECT CLICK">PROJECT CLICK</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Voucher # <span class="text-red-500">*</span></label>
+                            <input type="text" name="voucher_ref" required placeholder="e.g. DV-2026-01-012" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
                     </div>
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Status <span class="text-red-500">*</span></label>
-                        <select name="status" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="Pending">Pending</option>
-                            <option value="Obligated">Obligated</option>
-                            <option value="Disbursed">Disbursed</option>
-                        </select>
+                        <label class="block font-semibold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
+                        <textarea name="description" required rows="2" placeholder="e.g. Training Materials & Honoraria" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                     </div>
-                </div>
-                <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
+                            <select name="expense_category" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="MOOE - Training & Seminars">MOOE - Training & Seminars</option>
+                                <option value="Supplies & Logistics">Supplies & Logistics</option>
+                                <option value="Honorarium & Consultancy">Honorarium & Consultancy</option>
+                                <option value="Capital Outlay - Equipment">Capital Outlay - Equipment</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Status <span class="text-red-500">*</span></label>
+                            <select name="status" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="Pending">Pending</option>
+                                <option value="Obligated">Obligated</option>
+                                <option value="Disbursed">Disbursed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Allocated <span class="text-red-500">*</span></label>
+                            <input type="number" name="allocated" required step="0.01" min="0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Obligated <span class="text-red-500">*</span></label>
+                            <input type="number" name="obligated" required step="0.01" min="0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Disbursed <span class="text-red-500">*</span></label>
+                            <input type="number" name="disbursed" required step="0.01" min="0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Allocated <span class="text-red-500">*</span></label>
-                        <input type="number" name="allocated" required step="0.01" min="0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <label class="block font-semibold text-slate-700 mb-1">Transaction Date <span class="text-red-500">*</span></label>
+                        <input type="date" name="transaction_date" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Obligated <span class="text-red-500">*</span></label>
-                        <input type="number" name="obligated" required step="0.01" min="0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
+                        <button type="submit" form="addFundingForm" :disabled="saving" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Record</button>
                     </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Disbursed <span class="text-red-500">*</span></label>
-                        <input type="number" name="disbursed" required step="0.01" min="0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Transaction Date <span class="text-red-500">*</span></label>
-                    <input type="date" name="transaction_date" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div class="flex justify-end gap-3 pt-2">
-                    <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
-                    <button type="submit" form="addFundingForm" :disabled="saving" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Record</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
