@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Tmd;
 use App\Http\Controllers\Controller;
 use App\Models\Trainer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class TrainerController extends Controller
 {
@@ -55,9 +56,41 @@ class TrainerController extends Controller
 
     public function destroy(Trainer $trainer)
     {
+        $this->deletePhotoFile($trainer);
         $trainer->delete();
 
         return response()->json(['message' => 'Trainer deleted successfully.']);
+    }
+
+    public function uploadPhoto(Request $request, Trainer $trainer)
+    {
+        $request->validate([
+            'profile_image' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        if ($trainer->profile_image) {
+            Storage::disk('public')->delete($trainer->profile_image);
+        }
+
+        $path = $request->file('profile_image')->store('trainer-photos', 'public');
+        $trainer->update(['profile_image' => $path]);
+
+        return response()->json(['trainer' => $this->payload($trainer->fresh())]);
+    }
+
+    public function deletePhoto(Trainer $trainer)
+    {
+        $this->deletePhotoFile($trainer);
+        $trainer->update(['profile_image' => null]);
+
+        return response()->json(['trainer' => $this->payload($trainer->fresh())]);
+    }
+
+    protected function deletePhotoFile(Trainer $trainer): void
+    {
+        if ($trainer->profile_image) {
+            Storage::disk('public')->delete($trainer->profile_image);
+        }
     }
 
     protected function validated(Request $request): array
@@ -88,6 +121,7 @@ class TrainerController extends Controller
             'status' => $trainer->status,
             'courses' => (int) $trainer->courses,
             'rating' => (float) $trainer->rating,
+            'profile_image' => $trainer->profile_image,
         ];
     }
 }

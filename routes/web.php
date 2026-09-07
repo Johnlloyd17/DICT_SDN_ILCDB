@@ -10,6 +10,7 @@ use App\Http\Controllers\Tmd\TmdPenetrationController;
 use App\Http\Controllers\Tmd\TrainerController;
 use App\Http\Controllers\Tmd\TrainingBatchController;
 use App\Http\Controllers\Dtc\CenterInventoryController;
+use App\Http\Controllers\Dtc\ServiceController;
 use App\Http\Controllers\Dtc\VisitorController;
 use App\Http\Controllers\SdnPdiController;
 use App\Models\FundingRecord;
@@ -49,6 +50,8 @@ Route::middleware(['auth', 'verified'])->prefix('tmd')->name('tmd.')->group(func
     Route::get('/trainers', [TrainerController::class, 'index'])->name('trainers.index');
     Route::post('/trainers', [TrainerController::class, 'store'])->name('trainers.store');
     Route::put('/trainers/{trainer}', [TrainerController::class, 'update'])->name('trainers.update');
+    Route::post('/trainers/{trainer}/photo', [TrainerController::class, 'uploadPhoto'])->name('trainers.photo');
+    Route::delete('/trainers/{trainer}/photo', [TrainerController::class, 'deletePhoto'])->name('trainers.photo.delete');
     Route::delete('/trainers/{trainer}', [TrainerController::class, 'destroy'])->name('trainers.destroy');
 });
 
@@ -60,6 +63,9 @@ Route::middleware(['auth', 'verified'])->prefix('dtc')->name('dtc.')->group(func
     Route::put('/visitors/{visitor}', [VisitorController::class, 'update'])->name('visitors.update');
     Route::delete('/visitors/{visitor}', [VisitorController::class, 'destroy'])->name('visitors.destroy');
     Route::get('/analytics', fn() => redirect()->route('dtc.visitors.index'))->name('analytics');
+    Route::post('/services', [ServiceController::class, 'store'])->name('services.store');
+    Route::put('/services/{service}', [ServiceController::class, 'update'])->name('services.update');
+    Route::delete('/services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
     Route::get('/centers', [CenterInventoryController::class, 'index'])->name('centers.index');
     Route::post('/centers', [CenterInventoryController::class, 'store'])->name('centers.store');
     Route::post('/centers/import', [CenterInventoryController::class, 'import'])->name('centers.import');

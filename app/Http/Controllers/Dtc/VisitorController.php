@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Dtc;
 use App\Http\Controllers\Controller;
 use App\Models\DtcCenterInventory;
 use App\Models\DtcHub;
-use App\Models\DtcVisitorLog;
+use App\Models\DtcService;
+use App\Models\Visit;
+use App\Models\Visitor;
+use App\Models\VisitService;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -21,49 +24,58 @@ class VisitorController extends Controller
         $sdnView = (bool)$request->input('sdn_view', false);
 
         $hubs = DtcHub::where('status', 'Active')->orderBy('name')->get();
+        $services = DtcService::where('is_active', true)
+            ->select('service_name')
+            ->distinct()
+            ->orderBy('service_name')
+            ->pluck('service_name');
 
-        // ==================== VISITOR LOGS (services tab) ====================
-        $visitorQuery = DtcVisitorLog::with('dtcHub');
+        // ==================== VISITOR / VISIT LOGS (services tab) ====================
+        $visitorQuery = Visit::with('visitor', 'dtcHub', 'services');
 
         if ($request->filled('hub') && $request->hub !== 'ALL') {
             $hubIds = DtcHub::where('name', $request->hub)->pluck('id');
-            $visitorQuery->whereIn('dtc_hub_id', $hubIds);
+            $visitorQuery->whereIn('visits.dtc_hub_id', $hubIds);
         }
 
         if ($request->filled('demo') && $request->demo !== 'ALL') {
-            $visitorQuery->where('demographic_sector', $request->demo);
+            $visitorQuery->whereHas('visitor', fn ($q) => $q->where('demographic_sector', $request->demo));
         }
 
         if ($request->filled('service') && $request->service !== 'ALL') {
-            $visitorQuery->whereJsonContains('services_ailed', $request->service);
+            $visitorQuery->whereHas('services', fn ($q) => $q->where('dtc_services.service_name', $request->service));
         }
 
         if ($request->filled('v_search')) {
             $s = $request->v_search;
             $visitorQuery->where(function ($q) use ($s) {
-                $q->where('visitor_name', 'like', "%{$s}%")
-                  ->orWhere('log_code', 'like', "%{$s}%")
-                  ->orWhere('demographic_sector', 'like', "%{$s}%");
+                $q->where('visits.visit_code', 'like', "%{$s}%")
+                  ->orWhere('visits.status', 'like', "%{$s}%")
+                  ->orWhereHas('visitor', function ($v) use ($s) {
+                      $v->where('name', 'like', "%{$s}%")
+                        ->orWhere('demographic_sector', 'like', "%{$s}%");
+                  });
             });
         }
 
-        $visitors = $visitorQuery->orderByDesc('visit_date')->paginate(15, ['*'], 'v_page')->withQueryString();
+        $visitors = $visitorQuery->orderByDesc('visits.check_in_time')->paginate(15, ['*'], 'v_page')->withQueryString();
 
-        $totalTraffic = DtcVisitorLog::count();
-        $uniqueCitizens = DtcVisitorLog::distinct('visitor_name')->count('visitor_name');
+        $visitors->getCollection()->transform(fn (Visit $visit) => $this->visitToArray($visit));
 
-        $servicesCount = [];
-        DtcVisitorLog::pluck('services_ailed')->each(function ($svc) use (&$servicesCount) {
-            $decoded = is_array($svc) ? $svc : (json_decode($svc, true) ?? []);
-            foreach ($decoded as $s) {
-                $servicesCount[$s] = ($servicesCount[$s] ?? 0) + 1;
-            }
-        });
+        $totalTraffic = Visit::count();
+        $uniqueCitizens = Visitor::count();
+
+        $servicesCount = DtcService::query()
+            ->join('visit_services', 'visit_services.service_id', '=', 'dtc_services.id')
+            ->selectRaw('dtc_services.service_name, COUNT(*) as total')
+            ->groupBy('dtc_services.service_name')
+            ->pluck('total', 'service_name')
+            ->toArray();
         arsort($servicesCount);
         $topService = array_key_first($servicesCount) ?? '—';
 
-        $firstVisit = DtcVisitorLog::min('visit_date');
-        $lastVisit = DtcVisitorLog::max('visit_date');
+        $firstVisit = Visit::min('check_in_time');
+        $lastVisit = Visit::max('check_in_time');
         if ($firstVisit && $lastVisit) {
             $days = max(1, (int)ceil((strtotime($lastVisit) - strtotime($firstVisit)) / 86400) + 1);
         } else {
@@ -219,7 +231,7 @@ class VisitorController extends Controller
         $sortProvinces($centersByHostProvince);
 
         return view('dtc.visitors.index', compact(
-            'view', 'activeTab', 'sdnView', 'hubs',
+            'view', 'activeTab', 'sdnView', 'hubs', 'services',
             'visitors', 'totalTraffic', 'uniqueCitizens', 'servicesCount', 'topService', 'avgDaily', 'activeHubs',
             'centers', 'municipalities', 'totalCenters', 'operationalCenters', 'withConnectivity',
             'districtStats', 'selectedMuni', 'selectedDistrict', 'hubMunicipalities', 'sdnCenters',
@@ -233,71 +245,105 @@ class VisitorController extends Controller
     {
         $request->validate([
             'visitor_name' => 'required|string|max:255',
+            'contact_number' => 'nullable|string|max:50',
             'gender' => 'required|in:Male,Female',
             'age' => 'required|integer|min:10|max:99',
             'demographic_sector' => 'required|string|max:100',
             'dtc_hub_id' => 'required|exists:dtc_hubs,id',
             'services' => 'required|array',
             'services.*' => 'string|max:100',
-            'session_duration' => 'required|string|max:50',
-            'visit_date' => 'nullable|date',
+            'purpose_of_visit' => 'nullable|string|max:200',
+            'check_in_time' => 'nullable|date',
+            'check_out_time' => 'nullable|date',
+            'status' => 'nullable|in:Active,Completed,Cancelled',
         ]);
 
-        $lastId = DtcVisitorLog::max('id') ?? 0;
-        $code = 'DTC-' . date('Y') . '-' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
-
-        $visitor = DtcVisitorLog::create([
-            'log_code' => $code,
-            'visitor_name' => $request->visitor_name,
+        $visitor = $this->upsertVisitor([
+            'name' => $request->visitor_name,
+            'contact_number' => $request->contact_number,
             'gender' => $request->gender,
             'age' => $request->age,
             'demographic_sector' => $request->demographic_sector,
-            'dtc_hub_id' => $request->dtc_hub_id,
-            'services_ailed' => $request->services,
-            'session_duration' => $request->session_duration,
-            'visit_date' => $request->visit_date ?: now(),
         ]);
 
+        $code = 'DTC-VIS-' . date('Y') . '-' . str_pad((Visit::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
+
+        $visit = Visit::create([
+            'visit_code' => $code,
+            'visitor_id' => $visitor->id,
+            'dtc_hub_id' => $request->dtc_hub_id,
+            'purpose_of_visit' => $request->purpose_of_visit,
+            'check_in_time' => $request->check_in_time ?: now(),
+            'check_out_time' => $request->check_out_time,
+            'status' => $request->status ?: ($request->check_out_time ? 'Completed' : 'Active'),
+        ]);
+
+        foreach ($this->resolveServiceIds($request->dtc_hub_id, $request->services) as $serviceId) {
+            VisitService::create([
+                'visit_id' => $visit->id,
+                'service_id' => $serviceId,
+                'status' => 'Completed',
+            ]);
+        }
+
         if ($request->wantsJson()) {
-            return response()->json(['visitor' => $visitor], 201);
+            return response()->json(['visitor' => $this->visitToArray($visit->load('visitor', 'dtcHub', 'services'))], 201);
         }
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor session recorded successfully.');
     }
 
-    public function update(Request $request, DtcVisitorLog $visitor)
+    public function update(Request $request, Visit $visitor)
     {
         $request->validate([
             'visitor_name' => 'required|string|max:255',
+            'contact_number' => 'nullable|string|max:50',
             'gender' => 'required|in:Male,Female',
             'age' => 'required|integer|min:10|max:99',
             'demographic_sector' => 'required|string|max:100',
             'dtc_hub_id' => 'required|exists:dtc_hubs,id',
             'services' => 'required|array',
             'services.*' => 'string|max:100',
-            'session_duration' => 'required|string|max:50',
-            'visit_date' => 'nullable|date',
+            'purpose_of_visit' => 'nullable|string|max:200',
+            'check_in_time' => 'nullable|date',
+            'check_out_time' => 'nullable|date',
+            'status' => 'nullable|in:Active,Completed,Cancelled',
         ]);
 
-        $visitor->update([
-            'visitor_name' => $request->visitor_name,
+        $visitorRecord = $this->upsertVisitor([
+            'name' => $request->visitor_name,
+            'contact_number' => $request->contact_number,
             'gender' => $request->gender,
             'age' => $request->age,
             'demographic_sector' => $request->demographic_sector,
-            'dtc_hub_id' => $request->dtc_hub_id,
-            'services_ailed' => $request->services,
-            'session_duration' => $request->session_duration,
-            'visit_date' => $request->visit_date ?: $visitor->visit_date,
         ]);
 
+        $visitor->update([
+            'visitor_id' => $visitorRecord->id,
+            'dtc_hub_id' => $request->dtc_hub_id,
+            'purpose_of_visit' => $request->purpose_of_visit,
+            'check_in_time' => $request->check_in_time ?: $visitor->check_in_time,
+            'check_out_time' => $request->check_out_time,
+            'status' => $request->status ?: ($request->check_out_time ? 'Completed' : 'Active'),
+        ]);
+
+        $visitor->visitServices()->delete();
+        foreach ($this->resolveServiceIds($request->dtc_hub_id, $request->services) as $serviceId) {
+            VisitService::create([
+                'visit_id' => $visitor->id,
+                'service_id' => $serviceId,
+                'status' => 'Completed',
+            ]);
+        }
+
         if ($request->wantsJson()) {
-            return response()->json(['visitor' => $visitor->fresh()]);
+            return response()->json(['visitor' => $this->visitToArray($visitor->fresh(['visitor', 'dtcHub', 'services']))]);
         }
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor log updated successfully.');
     }
 
-    public function destroy(DtcVisitorLog $visitor)
+    public function destroy(Visit $visitor)
     {
         $visitor->delete();
 
@@ -350,13 +396,14 @@ class VisitorController extends Controller
 
         $aliases = [
             'visitor_name' => ['visitorname', 'fullname', 'name', 'nameofvisitor', 'citizen', 'username'],
+            'contact_number' => ['contactnumber', 'contactno', 'contact', 'phone', 'mobile', 'number'],
             'gender' => ['gender', 'sex'],
             'age' => ['age', 'ageinyears'],
             'demographic_sector' => ['demographicsector', 'demographic', 'sector', 'citizentype', 'classification'],
             'dtc_hub_id' => ['dtchubid', 'dtchub', 'hub', 'center', 'dtccenter', 'hublocation', 'hubname'],
-            'services_ailed' => ['servicesailed', 'services', 'availedservices', 'service'],
-            'session_duration' => ['sessionduration', 'duration', 'hours', 'time'],
-            'visit_date' => ['visitdate', 'dateofvisit', 'date', 'logdate'],
+            'services' => ['services', 'servicesailed', 'servicesavailed', 'availedservices', 'service'],
+            'purpose_of_visit' => ['purpose', 'purposeofvisit', 'reason', 'purposeofavail'],
+            'visit_date' => ['visitdate', 'dateofvisit', 'date', 'logdate', 'checkin', 'checkintime'],
         ];
 
         $matchAlias = function ($sanitizedAlias, $sanitizedRow) {
@@ -444,7 +491,7 @@ class VisitorController extends Controller
                     $data[$field] = is_numeric($val) ? (int)$val : null;
                 } elseif ($field === 'dtc_hub_id') {
                     $data[$field] = $resolveHub($val);
-                } elseif ($field === 'services_ailed') {
+                } elseif ($field === 'services') {
                     $data[$field] = preg_split('/[;,\r\n]+/', $val, -1, PREG_SPLIT_NO_EMPTY);
                 } elseif ($field === 'visit_date') {
                     $ts = strtotime($val);
@@ -460,16 +507,36 @@ class VisitorController extends Controller
                 continue;
             }
 
-            $data['gender'] = in_array($data['gender'], ['Male', 'Female'], true) ? $data['gender'] : 'Male';
-            $data['age'] = $data['age'] ?: 0;
-            $data['demographic_sector'] = $data['demographic_sector'] ?: 'Unclassified';
-            $data['services_ailed'] = $data['services_ailed'] ?? ['Free High-Speed Internet'];
-            $data['session_duration'] = $data['session_duration'] ?: '—';
-            $data['visit_date'] = $data['visit_date'] ?: now();
-            $data['log_code'] = 'DTC-' . date('Y') . '-' . str_pad((DtcVisitorLog::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
-
             try {
-                DtcVisitorLog::create($data);
+                $visitor = $this->upsertVisitor([
+                    'name' => $data['visitor_name'],
+                    'contact_number' => $data['contact_number'] ?? null,
+                    'gender' => in_array($data['gender'] ?? null, ['Male', 'Female'], true) ? $data['gender'] : 'Male',
+                    'age' => ($data['age'] ?? 0) ?: 0,
+                    'demographic_sector' => ($data['demographic_sector'] ?? null) ?: 'Unclassified',
+                ]);
+
+                $code = 'DTC-VIS-' . date('Y') . '-' . str_pad((Visit::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
+
+                $visit = Visit::create([
+                    'visit_code' => $code,
+                    'visitor_id' => $visitor->id,
+                    'dtc_hub_id' => $data['dtc_hub_id'],
+                    'purpose_of_visit' => $data['purpose_of_visit'] ?? null,
+                    'check_in_time' => $data['visit_date'] ?: now(),
+                    'check_out_time' => null,
+                    'status' => 'Completed',
+                ]);
+
+                $services = $data['services'] ?? ['Free High-Speed Internet'];
+                foreach ($this->resolveServiceIds($visit->dtc_hub_id, $services) as $serviceId) {
+                    VisitService::create([
+                        'visit_id' => $visit->id,
+                        'service_id' => $serviceId,
+                        'status' => 'Completed',
+                    ]);
+                }
+
                 $imported++;
             } catch (\Exception $e) {
                 $rowNum = $headerRowIdx + $i + 2;
@@ -484,5 +551,99 @@ class VisitorController extends Controller
 
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with($imported > 0 ? 'success' : 'error', $message);
+    }
+
+    private function upsertVisitor(array $data): Visitor
+    {
+        $name = trim($data['name'] ?? '');
+        if ($name === '') {
+            throw new \InvalidArgumentException('Visitor name is required.');
+        }
+
+        $contact = isset($data['contact_number']) && trim((string)$data['contact_number']) !== ''
+            ? trim((string)$data['contact_number'])
+            : null;
+
+        $visitor = $contact
+            ? Visitor::where('name', $name)->where('contact_number', $contact)->first()
+            : null;
+
+        if (!$visitor) {
+            $visitor = Visitor::where('name', $name)->first();
+        }
+
+        $payload = [
+            'gender' => ($data['gender'] ?? null) ?: 'Male',
+            'age' => ($data['age'] ?? null) ?: 0,
+            'demographic_sector' => ($data['demographic_sector'] ?? null) ?: 'Unclassified',
+        ];
+        if ($contact !== null) {
+            $payload['contact_number'] = $contact;
+        }
+
+        if ($visitor) {
+            $visitor->update($payload);
+            return $visitor;
+        }
+
+        return Visitor::create(['name' => $name, 'contact_number' => $contact] + $payload);
+    }
+
+    private function resolveServiceIds(int $hubId, ?array $serviceNames): array
+    {
+        $ids = [];
+        foreach ($serviceNames ?? [] as $name) {
+            $name = trim((string)$name);
+            if ($name === '') continue;
+
+            $service = DtcService::where('dtc_hub_id', $hubId)->where('service_name', $name)->first()
+                ?? DtcService::where('service_name', $name)->first();
+
+            if ($service) {
+                $ids[] = $service->id;
+            }
+        }
+        return array_values(array_unique($ids));
+    }
+
+    private function visitToArray(Visit $visit): array
+    {
+        $checkIn = $visit->check_in_time;
+        $checkOut = $visit->check_out_time;
+
+        return [
+            'id' => $visit->id,
+            'log_code' => $visit->visit_code,
+            'visit_code' => $visit->visit_code,
+            'visitor_name' => $visit->visitor->name ?? '',
+            'gender' => $visit->visitor->gender ?? '',
+            'age' => $visit->visitor->age ?? '',
+            'demographic_sector' => $visit->visitor->demographic_sector ?? '',
+            'contact_number' => $visit->visitor->contact_number ?? '',
+            'dtc_hub_id' => $visit->dtc_hub_id,
+            'dtc_hub_name' => $visit->dtcHub->name ?? '',
+            'services_ailed' => $visit->services->pluck('service_name')->values()->all(),
+            'service_ids' => $visit->services->pluck('id')->values()->all(),
+            'session_duration' => $this->formatDuration($checkIn, $checkOut),
+            'visit_date' => $checkIn?->toDateTimeString(),
+            'check_in_time' => $checkIn?->format('Y-m-d\TH:i'),
+            'check_out_time' => $checkOut?->format('Y-m-d\TH:i'),
+            'purpose_of_visit' => $visit->purpose_of_visit,
+            'status' => $visit->status,
+        ];
+    }
+
+    private function formatDuration($checkIn, $checkOut): string
+    {
+        if (!$checkIn || !$checkOut) {
+            return '—';
+        }
+        $minutes = abs((int) round($checkOut->diffInMinutes($checkIn)));
+        if ($minutes < 60) {
+            return $minutes > 0 ? "{$minutes} mins" : '—';
+        }
+        $h = intdiv($minutes, 60);
+        $m = $minutes % 60;
+        return $m > 0 ? "{$h} hr {$m} mins" : "{$h} hrs";
     }
 }

@@ -105,19 +105,21 @@
 
     {{-- CHARTS ROW --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4">
-                <i class="fa-solid fa-chart-bar text-blue-600"></i> Allocated vs Disbursed per Project
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="chartCard('fundingBarChart')">
+            <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center justify-between gap-2 mb-4 cursor-pointer select-none">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-bar text-blue-600"></i> Allocated vs Disbursed per Project</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
             </h3>
-            <div class="h-[clamp(12rem,26vw,18rem)]">
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-[clamp(12rem,26vw,18rem)]">
                 <canvas id="fundingBarChart"></canvas>
             </div>
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4">
-                <i class="fa-solid fa-chart-pie text-purple-600"></i> Expense Category Breakdown
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="chartCard('fundingDoughnutChart')">
+            <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center justify-between gap-2 mb-4 cursor-pointer select-none">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-pie text-purple-600"></i> Expense Category Breakdown</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
             </h3>
-            <div class="h-[clamp(12rem,26vw,18rem)]">
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-[clamp(12rem,26vw,18rem)]">
                 <canvas id="fundingDoughnutChart"></canvas>
             </div>
         </div>
@@ -347,6 +349,7 @@
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @include('partials.chart-card')
     <script>
     window.fundingCrud = function(seed) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -429,7 +432,7 @@
         if (barCtx) {
             const projects = @json($projectFunding);
             const labels = projects.map(p => p.project);
-            new Chart(barCtx, {
+            registerChart('fundingBarChart', new Chart(barCtx, {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -444,14 +447,14 @@
                     plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } },
                     scales: { y: { beginAtZero: true, ticks: { callback: v => '₱' + (v/1000).toFixed(0) + 'k' } } }
                 }
-            });
+            }));
         }
 
         const doughnutCtx = document.getElementById('fundingDoughnutChart');
         if (doughnutCtx) {
             const categories = @json($categories);
             const colors = ['#003366','#FCD116','#CE1126','#10b981','#8b5cf6','#f59e0b'];
-            new Chart(doughnutCtx, {
+            registerChart('fundingDoughnutChart', new Chart(doughnutCtx, {
                 type: 'doughnut',
                 data: {
                     labels: categories.map(c => c.expense_category),
@@ -465,7 +468,7 @@
                         tooltip: { callbacks: { label: ctx => '₱' + Number(ctx.raw).toLocaleString() } }
                     }
                 }
-            });
+            }));
         }
     });
     </script>

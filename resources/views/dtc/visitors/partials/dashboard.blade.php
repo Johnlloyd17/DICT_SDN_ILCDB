@@ -45,11 +45,12 @@
 {{-- CHARTS --}}
 <div x-data="{ year: '{{ date('Y') }}' }" class="space-y-6 mb-6">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+        <div class="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('dtcFootTrafficChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center gap-2 cursor-pointer select-none">
                         <i class="fa-solid fa-chart-line text-cyan-600"></i> DTC Users Foot Traffic & Visitor Trends
+                        <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
                     </h3>
                     <p class="text-xs text-slate-500">Monthly visitor counts and daily average foot traffic across DTC hubs</p>
                 </div>
@@ -58,7 +59,7 @@
                     <option value="{{ date('Y') - 1 }}">Year {{ date('Y') - 1 }} Historical</option>
                 </select>
             </div>
-            <div class="h-[clamp(12rem,26vw,18rem)] relative">
+            <div x-show="!collapsed" class="h-[clamp(12rem,26vw,18rem)] relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-full px-8 animate-pulse">
                         <div class="h-3 bg-slate-200 rounded w-1/4"></div>
@@ -68,14 +69,15 @@
                 <canvas id="dtcFootTrafficChart" :class="loading ? 'opacity-0' : 'opacity-100'"></canvas>
             </div>
         </div>
-        <div class="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+        <div class="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('dtcDemographicsChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
             <div class="mb-4">
-                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center gap-2 cursor-pointer select-none">
                     <i class="fa-solid fa-pie-chart text-indigo-600"></i> Users Demographic Breakdown
+                    <i class="fa-solid text-slate-400 ml-auto" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
                 </h3>
                 <p class="text-xs text-slate-500">Categorization of citizens using DTC Hub resources</p>
             </div>
-            <div class="h-[clamp(12rem,26vw,18rem)] relative">
+            <div x-show="!collapsed" class="h-[clamp(12rem,26vw,18rem)] relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-3/4 animate-pulse">
                         <div class="h-3 bg-slate-200 rounded w-1/3 mx-auto"></div>
@@ -88,14 +90,15 @@
             </div>
         </div>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('dtcServicesAvailedChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
         <div class="mb-4">
-            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center gap-2 cursor-pointer select-none">
                 <i class="fa-solid fa-list-check text-emerald-600"></i> DTC Services Availed Volume & Distribution
+                <i class="fa-solid text-slate-400 ml-auto" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
             </h3>
             <p class="text-xs text-slate-500">Total sessions logged for each ICT service offered at the centers</p>
         </div>
-        <div class="h-[clamp(12rem,24vw,16rem)] relative">
+        <div x-show="!collapsed" class="h-[clamp(12rem,24vw,16rem)] relative">
             <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                 <div class="space-y-3 w-full px-8 animate-pulse">
                     <div class="h-3 bg-slate-200 rounded w-1/4"></div>
@@ -199,7 +202,7 @@
         </select>
         <select x-model="filterService" x-on:change="currentPage = 1" class="text-xs p-2 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-cyan-500">
             <option value="ALL">All Services</option>
-            @foreach(['Free High-Speed Internet', 'eGov PH & Government Portal Access', 'Printing & Document Scanning', 'Co-working & Freelance Space', 'Tech Assistance & Consultation'] as $s)
+            @foreach($services as $s)
             <option value="{{ $s }}">{{ $s }}</option>
             @endforeach
         </select>
@@ -225,10 +228,14 @@
                         <td class="px-4 py-3">
                             <span class="font-mono text-[11px] font-bold text-cyan-700" x-text="v.log_code"></span>
                             <br><span class="text-[10px] text-slate-400" x-text="formatDate(v.visit_date)"></span>
+                            <br><span class="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                                :class="v.status === 'Completed' ? 'bg-emerald-50 text-emerald-700' : (v.status === 'Cancelled' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700')"
+                                x-text="v.status"></span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="font-semibold" x-text="v.visitor_name"></span>
                             <br><span class="text-[10px] text-slate-400" x-text="v.gender + ', ' + v.age + ' yrs'"></span>
+                            <br><span class="text-[10px] text-slate-400 italic" x-show="v.purpose_of_visit" x-text="'Purpose: ' + v.purpose_of_visit"></span>
                         </td>
                         <td class="px-4 py-3 hidden md:table-cell">
                             <span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold" x-text="v.demographic_sector"></span>

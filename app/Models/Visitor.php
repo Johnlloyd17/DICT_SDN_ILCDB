@@ -6,35 +6,29 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class DtcHub extends Model
+class Visitor extends Model
 {
     use HasFactory;
 
-    protected $table = 'dtc_hubs';
+    protected $table = 'visitors';
 
     protected $fillable = [
         'name',
-        'municipality',
-        'latitude',
-        'longitude',
-        'status',
+        'contact_number',
+        'gender',
+        'age',
+        'demographic_sector',
     ];
 
     protected function casts(): array
     {
         return [
-            'latitude' => 'decimal:7',
-            'longitude' => 'decimal:7',
+            'age' => 'integer',
         ];
     }
 
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class);
-    }
-
-    public function dtcServices(): HasMany
-    {
-        return $this->hasMany(DtcService::class);
     }
 }

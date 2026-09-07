@@ -3,35 +3,43 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\DtcVisitorLog;
+use App\Models\DtcService;
+use App\Models\Visit;
 use Illuminate\Http\Request;
 
 class DtcVisitorController extends Controller
 {
     public function index(Request $request)
     {
-        $query = DtcVisitorLog::select('demographic_sector', 'services_ailed', 'visit_date', 'dtc_hub_id');
+        $query = Visit::with('visitor', 'services')
+            ->select('visits.id', 'visits.visit_code', 'visits.visitor_id', 'visits.dtc_hub_id', 'visits.check_in_time');
 
         if ($request->filled('year')) {
-            $query->whereYear('visit_date', $request->year);
+            $query->whereYear('check_in_time', $request->year);
         }
 
-        return response()->json($query->get()->toArray());
+        return response()->json($query->get()->map(function (Visit $visit) {
+            return [
+                'id' => $visit->id,
+                'visit_code' => $visit->visit_code,
+                'visitor_name' => $visit->visitor->name ?? '',
+                'demographic_sector' => $visit->visitor->demographic_sector ?? '',
+                'services_ailed' => $visit->services->pluck('service_name')->values()->all(),
+                'visit_date' => $visit->check_in_time ? $visit->check_in_time->toDateTimeString() : null,
+                'dtc_hub_id' => $visit->dtc_hub_id,
+            ];
+        }));
     }
 
     public function traffic(Request $request)
     {
         $year = $request->get('year', date('Y'));
 
-        $monthly = DtcVisitorLog::whereYear('visit_date', $year)
-            ->selectRaw('MONTH(visit_date) as month, COUNT(*) as count')
-            ->groupByRaw('MONTH(visit_date)')
-            ->pluck('count', 'month')
-            ->toArray();
-
         $data = [];
         for ($m = 1; $m <= 12; $m++) {
-            $data[$m] = $monthly[$m] ?? 0;
+            $data[$m] = Visit::whereYear('check_in_time', $year)
+                ->whereMonth('check_in_time', $m)
+                ->count();
         }
 
         return response()->json($data);
@@ -40,17 +48,17 @@ class DtcVisitorController extends Controller
     public function services(Request $request)
     {
         $year = $request->get('year', date('Y'));
-        $logs = DtcVisitorLog::whereYear('visit_date', $year)->pluck('services_ailed');
 
-        $counts = [];
-        $logs->each(function ($svc) use (&$counts) {
-            $decoded = is_array($svc) ? $svc : (json_decode($svc, true) ?? []);
-            foreach ($decoded as $s) {
-                $counts[$s] = ($counts[$s] ?? 0) + 1;
-            }
-        });
+        $counts = DtcService::where('is_active', true)
+            ->withCount(['visitServices as session_count' => function ($query) use ($year) {
+                $query->whereHas('visit', function ($v) use ($year) {
+                    $v->whereYear('check_in_time', $year);
+                });
+            }])
+            ->orderByDesc('session_count')
+            ->get()
+            ->pluck('session_count', 'service_name');
 
-        arsort($counts);
-        return response()->json($counts);
+        return response()->json($counts->all());
     }
 }

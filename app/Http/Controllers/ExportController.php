@@ -67,17 +67,17 @@ class ExportController extends Controller
 
                 case 'dtc-visitors':
                     fputcsv($handle, ['Log ID & Date', 'User Name', 'Gender', 'Age', 'Demographic Sector', 'DTC Hub Location', 'Services Availed', 'Duration', 'Action']);
-                    \App\Models\DtcVisitorLog::with('dtcHub')->orderByDesc('visit_date')->each(function ($v) use ($handle) {
+                    \App\Models\Visit::with('visitor', 'dtcHub', 'services')->orderByDesc('check_in_time')->each(function ($v) use ($handle) {
                         fputcsv($handle, [
-                            $v->log_code,
-                            $v->visit_date->format('M d, Y'),
-                            $v->visitor_name,
-                            $v->gender,
-                            $v->age,
-                            $v->demographic_sector,
+                            $v->visit_code,
+                            $v->check_in_time?->format('M d, Y'),
+                            $v->visitor->name ?? '',
+                            $v->visitor->gender ?? '',
+                            $v->visitor->age ?? '',
+                            $v->visitor->demographic_sector ?? '',
                             $v->dtcHub->name ?? '',
-                            implode('; ', $v->services_ailed ?? []),
-                            $v->session_duration,
+                            implode('; ', $v->services->pluck('service_name')->all()),
+                            $this->formatDuration($v->check_in_time, $v->check_out_time),
                         ]);
                     });
                     break;
@@ -122,7 +122,7 @@ class ExportController extends Controller
                     foreach ($years as $year) {
                         $trainees = \App\Models\Participant::whereYear('created_at', $year)->count();
                         $budget = \App\Models\FundingRecord::whereYear('transaction_date', $year)->sum('disbursed');
-                        $traffic = \App\Models\DtcVisitorLog::whereYear('visit_date', $year)->count();
+                        $traffic = \App\Models\Visit::whereYear('check_in_time', $year)->count();
                         $beneficiaries = \App\Models\ClickDevice::whereYear('donation_date', $year)->sum('quantity');
                         $growth = $prev > 0 ? round(($trainees - $prev) / $prev * 100) : 0;
                         fputcsv($handle, [
@@ -311,6 +311,20 @@ class ExportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    protected function formatDuration($checkIn, $checkOut): string
+    {
+        if (!$checkIn || !$checkOut) {
+            return '—';
+        }
+        $minutes = (int) round($checkOut->diffInMinutes($checkIn));
+        if ($minutes < 60) {
+            return $minutes > 0 ? "{$minutes} mins" : '—';
+        }
+        $h = intdiv($minutes, 60);
+        $m = $minutes % 60;
+        return $m > 0 ? "{$h} hr {$m} mins" : "{$h} hrs";
+    }
+
     public function template(string $module)
     {
         $filename = $module . '_template_' . date('Y-m-d') . '.csv';
@@ -326,7 +340,7 @@ class ExportController extends Controller
             match ($module) {
                 'tmd-batches' => fputcsv($handle, ['Batch Code', 'Course Title', 'Venue', 'Target Count', 'Trainer Name', 'Start Date', 'End Date', 'Status']),
                 'tmd-participants' => fputcsv($handle, ['Full Name', 'Training Batch ID', 'Municipality', 'Agency/Sector', 'Completion Status']),
-                'dtc-visitors' => fputcsv($handle, ['Visitor Name', 'Gender', 'Age', 'Demographic Sector', 'DTC Hub ID', 'Session Duration', 'Services']),
+                'dtc-visitors' => fputcsv($handle, ['Visitor Name', 'Contact Number', 'Gender', 'Age', 'Demographic Sector', 'DTC Hub', 'Services', 'Purpose of Visit', 'Visit Date']),
                 'spark-trainees' => fputcsv($handle, ['Full Name', 'Specialty', 'Course', 'Municipality', 'Employment Status', 'Monthly Earnings']),
                 'click-devices' => fputcsv($handle, ['Batch ID', 'Donation Date', 'Device Type', 'Quantity', 'Beneficiary', 'Municipality', 'Status']),
                 'centers' => fputcsv($handle, ['Congressional District', 'Province', 'Municipality/City', 'Barangay', 'Center Name', 'Longitude', 'Latitude', 'Verified', 'MOA Date of Signing', 'Date of Launching', 'Date of Platform Registration', 'TCMS Status', 'TCMS Key', 'TCMS Identifier', 'TCMS Verification Status', 'ODK Status', 'Connectivity Status', 'Type of Center Host', 'Operational Status']),

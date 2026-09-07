@@ -55,9 +55,12 @@
 
     {{-- CHARTS --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-            <h4 class="font-bold text-slate-800 text-sm mb-4"><i class="fa-solid fa-chart-pie text-amber-600 mr-2"></i> Employment Status Distribution</h4>
-            <div class="h-64 relative">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('sparkEmploymentChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+            <h4 @click="toggle()" class="font-bold text-slate-800 text-sm mb-4 cursor-pointer select-none flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-600 mr-2"></i> Employment Status Distribution</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+            </h4>
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-3/4 animate-pulse">
                         <div class="h-36 w-36 rounded-full bg-slate-100 mx-auto"></div>
@@ -67,9 +70,12 @@
                 <canvas id="sparkEmploymentChart" :class="loading ? 'opacity-0' : 'opacity-100'"></canvas>
             </div>
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-            <h4 class="font-bold text-slate-800 text-sm mb-4"><i class="fa-solid fa-chart-bar text-blue-600 mr-2"></i> Trainees by Municipality</h4>
-            <div class="h-64 relative">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('sparkMunicipalityChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+            <h4 @click="toggle()" class="font-bold text-slate-800 text-sm mb-4 cursor-pointer select-none flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-bar text-blue-600 mr-2"></i> Trainees by Municipality</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+            </h4>
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-full px-8 animate-pulse">
                         <div class="h-3 bg-slate-200 rounded w-1/4"></div>
@@ -171,7 +177,6 @@
                 <button x-on:click="page++" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
             </div>
         </div>
-    </div>
 
     {{-- ADD TRAINEE MODAL --}}
     <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addTrainee')" x-on:close-modal.window="if ($event.detail === 'addTrainee') show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -221,9 +226,11 @@
             </form>
         </div>
     </div>
+    </div>
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @include('partials.chart-card')
     <script>
     window.sparkTraineesCrud = function(seed) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -304,26 +311,26 @@
                 const empValues = Object.values(data.employment);
                 const empColors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'];
 
-                new Chart(document.getElementById('sparkEmploymentChart'), {
+                registerChart('sparkEmploymentChart', new Chart(document.getElementById('sparkEmploymentChart'), {
                     type: 'doughnut',
                     data: {
                         labels: empLabels,
                         datasets: [{ data: empValues, backgroundColor: empColors.slice(0, empLabels.length) }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
-                });
+                }));
 
                 const muniLabels = Object.keys(data.municipalities);
                 const muniValues = Object.values(data.municipalities);
 
-                new Chart(document.getElementById('sparkMunicipalityChart'), {
+                registerChart('sparkMunicipalityChart', new Chart(document.getElementById('sparkMunicipalityChart'), {
                     type: 'bar',
                     data: {
                         labels: muniLabels,
                         datasets: [{ label: 'Trainees', data: muniValues, backgroundColor: '#d97706', borderRadius: 4 }]
                     },
                     options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
-                });
+                }));
             });
     });
     </script>

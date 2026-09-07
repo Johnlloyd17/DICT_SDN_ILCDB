@@ -59,9 +59,12 @@
 
     {{-- DEVICE STATUS CHART --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-            <h4 class="font-bold text-slate-800 text-sm mb-4"><i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> Device Status Distribution</h4>
-            <div class="h-64 relative">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('clickStatusChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+            <h4 @click="toggle()" class="font-bold text-slate-800 text-sm mb-4 cursor-pointer select-none flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> Device Status Distribution</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+            </h4>
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-3/4 animate-pulse">
                         <div class="h-36 w-36 rounded-full bg-slate-100 mx-auto"></div>
@@ -71,9 +74,12 @@
                 <canvas id="clickStatusChart" :class="loading ? 'opacity-0' : 'opacity-100'"></canvas>
             </div>
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-            <h4 class="font-bold text-slate-800 text-sm mb-4"><i class="fa-solid fa-chart-bar text-teal-600 mr-2"></i> Devices by Municipality</h4>
-            <div class="h-64 relative">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('clickMuniChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+            <h4 @click="toggle()" class="font-bold text-slate-800 text-sm mb-4 cursor-pointer select-none flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-bar text-teal-600 mr-2"></i> Devices by Municipality</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+            </h4>
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-full px-8 animate-pulse">
                         <div class="h-3 bg-slate-200 rounded w-1/4"></div>
@@ -313,6 +319,7 @@
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @include('partials.chart-card')
     <script>
         function clickDevicesCrud(seed) {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -441,14 +448,14 @@
             const pending = {{ $pending }};
             const inTransit = {{ $inTransit }};
 
-            new Chart(document.getElementById('clickStatusChart'), {
+            registerChart('clickStatusChart', new Chart(document.getElementById('clickStatusChart'), {
                 type: 'doughnut',
                 data: {
                     labels: ['Turned Over', 'Pending', 'In Transit'],
                     datasets: [{ data: [turnedOver, pending, inTransit], backgroundColor: ['#10b981', '#f59e0b', '#3b82f6'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-            });
+            }));
 
             fetch('{{ route("api.click.devices") }}')
                 .then(r => r.json())
@@ -458,14 +465,14 @@
                     const labels = Object.keys(muniMap);
                     const values = Object.values(muniMap);
 
-                    new Chart(document.getElementById('clickMuniChart'), {
+                    registerChart('clickMuniChart', new Chart(document.getElementById('clickMuniChart'), {
                         type: 'bar',
                         data: {
                             labels: labels,
                             datasets: [{ label: 'Devices', data: values, backgroundColor: '#059669', borderRadius: 4 }]
                         },
                         options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
-                    });
+                    }));
                 });
         });
     </script>

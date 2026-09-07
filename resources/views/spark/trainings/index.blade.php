@@ -50,9 +50,12 @@
 
     {{-- CHARTS --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-            <h4 class="font-bold text-slate-800 text-sm mb-4"><i class="fa-solid fa-chart-pie text-amber-600 mr-2"></i> Training Status Distribution</h4>
-            <div class="h-64 relative">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('sparkStatusChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+            <h4 @click="toggle()" class="font-bold text-slate-800 text-sm mb-4 cursor-pointer select-none flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-pie text-amber-600 mr-2"></i> Training Status Distribution</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+            </h4>
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-3/4 animate-pulse">
                         <div class="h-36 w-36 rounded-full bg-slate-100 mx-auto"></div>
@@ -62,9 +65,12 @@
                 <canvas id="sparkStatusChart" :class="loading ? 'opacity-0' : 'opacity-100'"></canvas>
             </div>
         </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-            <h4 class="font-bold text-slate-800 text-sm mb-4"><i class="fa-solid fa-chart-bar text-yellow-600 mr-2"></i> Budget vs Enrollment by Track</h4>
-            <div class="h-64 relative">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('sparkBudgetChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+            <h4 @click="toggle()" class="font-bold text-slate-800 text-sm mb-4 cursor-pointer select-none flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-chart-bar text-yellow-600 mr-2"></i> Budget vs Enrollment by Track</span>
+                <i class="fa-solid text-slate-400" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+            </h4>
+            <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                 <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                     <div class="space-y-3 w-full px-8 animate-pulse">
                         <div class="h-3 bg-slate-200 rounded w-1/4"></div>
@@ -237,6 +243,7 @@
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @include('partials.chart-card')
     <script>
         function sparkTrainingsCrud(seed) {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -344,20 +351,20 @@
 
                     const colors = { 'Ongoing': '#10b981', 'Completed': '#3b82f6', 'Upcoming': '#f59e0b' };
 
-                    new Chart(document.getElementById('sparkStatusChart'), {
+                    registerChart('sparkStatusChart', new Chart(document.getElementById('sparkStatusChart'), {
                         type: 'doughnut',
                         data: {
                             labels: statusLabels,
                             datasets: [{ data: statusBudgets, backgroundColor: statusLabels.map(s => colors[s] || '#94a3b8') }]
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-                    });
+                    }));
 
                     fetch('{{ route("api.spark.trainings") }}')
                         .then(r => r.json())
                         .then(trainings => {
                             const labels = trainings.map(t => t.track_id);
-                            new Chart(document.getElementById('sparkBudgetChart'), {
+                            registerChart('sparkBudgetChart', new Chart(document.getElementById('sparkBudgetChart'), {
                                 type: 'bar',
                                 data: {
                                     labels: labels,
@@ -371,7 +378,7 @@
                                     plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
                                     scales: { y: { beginAtZero: true } }
                                 }
-                            });
+                            }));
                         });
                 });
         });

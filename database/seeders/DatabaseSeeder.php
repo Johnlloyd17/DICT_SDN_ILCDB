@@ -14,7 +14,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             DtcHubSeeder::class,
-            DtcVisitorLogSeeder::class,
+            DtcServiceSeeder::class,
+            DtcVisitorSeeder::class,
+            DtcVisitSeeder::class,
             CourseSeeder::class,
             TrainerSeeder::class,
             TrainingBatchSeeder::class,

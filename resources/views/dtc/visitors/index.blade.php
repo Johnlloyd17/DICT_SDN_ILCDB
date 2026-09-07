@@ -82,25 +82,29 @@
                     <h3 class="flex items-center gap-2 font-bold"><i class="fa-solid fa-shoe-prints text-cyan-400"></i> Log DTC Visitor / User Session</h3>
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
                 </div>
-                <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs" x-data="{ services: ['Free High-Speed Internet'] }">
+                <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs" x-data="{ }">
                     <div>
                         <label class="block mb-1 font-semibold text-slate-700">Visitor Full Name <span class="text-red-500">*</span></label>
                         <input type="text" name="visitor_name" required placeholder="e.g. Maria Clara Santos" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Contact Number</label>
+                            <input type="text" name="contact_number" placeholder="e.g. 09123456789" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
+                        <div>
                             <label class="block mb-1 font-semibold text-slate-700">Gender</label>
                             <select name="gender" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
-                                <option value="Female">Female</option>
                                 <option value="Male">Male</option>
+                                <option value="Female">Female</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block mb-1 font-semibold text-slate-700">Age <span class="text-red-500">*</span></label>
                             <input type="number" name="age" required min="10" max="99" placeholder="Age" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
                         </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block mb-1 font-semibold text-slate-700">Demographic Sector</label>
                             <select name="demographic_sector" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
@@ -109,6 +113,8 @@
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block mb-1 font-semibold text-slate-700">DTC Hub Center</label>
                             <select name="dtc_hub_id" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
@@ -117,17 +123,27 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Purpose of Visit</label>
+                            <input type="text" name="purpose_of_visit" placeholder="e.g. Print documents" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block mb-1 font-semibold text-slate-700">Session Duration <span class="text-red-500">*</span></label>
-                        <input type="text" name="session_duration" required placeholder="e.g. 1 hr 45 mins" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Check-in Time <span class="text-red-500">*</span></label>
+                            <input type="datetime-local" name="check_in_time" required class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Check-out Time</label>
+                            <input type="datetime-local" name="check_out_time" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
                     </div>
                     <div>
                         <label class="block mb-1 font-semibold text-slate-700">Services Availed <span class="text-red-500">*</span></label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border rounded-lg bg-slate-50 border-slate-200">
-                            @foreach(['Free High-Speed Internet', 'eGov PH & Government Portal Access', 'Printing & Document Scanning', 'Co-working & Freelance Space', 'Tech Assistance & Consultation'] as $i => $svc)
+                            @foreach($services as $svc)
                             <label class="flex items-center space-x-2 text-[11px] font-medium text-slate-700 cursor-pointer">
-                                <input type="checkbox" name="services[]" value="{{ $svc }}" {{ $i === 0 ? 'checked' : '' }} class="rounded text-cyan-600 focus:ring-cyan-500">
+                                <input type="checkbox" name="services[]" value="{{ $svc }}" class="rounded text-cyan-600 focus:ring-cyan-500">
                                 <span>{{ $svc }}</span>
                             </label>
                             @endforeach
@@ -158,18 +174,22 @@
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Contact Number</label>
+                            <input type="text" name="contact_number" x-model="visitor.contact_number" placeholder="e.g. 09123456789" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
+                        <div>
                             <label class="block mb-1 font-semibold text-slate-700">Gender</label>
                             <select name="gender" x-model="visitor.gender" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
-                                <option value="Female">Female</option>
                                 <option value="Male">Male</option>
+                                <option value="Female">Female</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block mb-1 font-semibold text-slate-700">Age <span class="text-red-500">*</span></label>
                             <input type="number" name="age" required min="10" max="99" x-model="visitor.age" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
                         </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block mb-1 font-semibold text-slate-700">Demographic Sector</label>
                             <select name="demographic_sector" x-model="visitor.demographic_sector" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
@@ -178,6 +198,8 @@
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block mb-1 font-semibold text-slate-700">DTC Hub Center</label>
                             <select name="dtc_hub_id" x-model="visitor.dtc_hub_id" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
@@ -186,15 +208,33 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Purpose of Visit</label>
+                            <input type="text" name="purpose_of_visit" x-model="visitor.purpose_of_visit" placeholder="e.g. Print documents" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Check-in Time <span class="text-red-500">*</span></label>
+                            <input type="datetime-local" name="check_in_time" required x-model="visitor.check_in_time" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block mb-1 font-semibold text-slate-700">Check-out Time</label>
+                            <input type="datetime-local" name="check_out_time" x-model="visitor.check_out_time" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        </div>
                     </div>
                     <div>
-                        <label class="block mb-1 font-semibold text-slate-700">Session Duration <span class="text-red-500">*</span></label>
-                        <input type="text" name="session_duration" required x-model="visitor.session_duration" placeholder="e.g. 1 hr 45 mins" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                        <label class="block mb-1 font-semibold text-slate-700">Visit Status</label>
+                        <select name="status" x-model="visitor.status" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 outline-none">
+                            <option value="Active">Active</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block mb-1 font-semibold text-slate-700">Services Availed <span class="text-red-500">*</span></label>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border rounded-lg bg-slate-50 border-slate-200">
-                            @foreach(['Free High-Speed Internet', 'eGov PH & Government Portal Access', 'Printing & Document Scanning', 'Co-working & Freelance Space', 'Tech Assistance & Consultation'] as $i => $svc)
+                            @foreach($services as $svc)
                             <label class="flex items-center space-x-2 text-[11px] font-medium text-slate-700 cursor-pointer">
                                 <input type="checkbox" name="services[]" value="{{ $svc }}" x-bind:checked="visitor?.services_ailed?.includes('{{ $svc }}')" class="rounded text-cyan-600 focus:ring-cyan-500">
                                 <span>{{ $svc }}</span>
@@ -341,7 +381,7 @@
                 <form x-on:submit.prevent="submitForm($event)" class="p-6 space-y-4 text-xs">
                     <div class="p-4 text-blue-800 border border-blue-200 rounded-lg bg-blue-50">
                         <p class="mb-1 font-semibold">Accepted formats: <strong>CSV, XLSX</strong></p>
-                        <p class="text-blue-600">Download the template first to ensure correct column headers. Required columns: <strong>Visitor Name</strong>, <strong>Age</strong>, <strong>Demographic Sector</strong>, <strong>DTC Hub</strong>, <strong>Session Duration</strong>, and <strong>Visit Date</strong>.</p>
+                        <p class="text-blue-600">Download the template first to ensure correct column headers. Required columns: <strong>Visitor Name</strong>, <strong>Age</strong>, <strong>Demographic Sector</strong>, <strong>DTC Hub</strong>, and <strong>Services</strong>. Optional: Contact Number, Purpose of Visit, Visit Date.</p>
                         <a href="{{ route('export.template', 'dtc-visitors') }}" class="inline-flex items-center gap-1 mt-2 font-bold text-blue-700 underline hover:text-blue-900">
                             <i class="fa-solid fa-download"></i> Download template
                         </a>
@@ -509,6 +549,7 @@
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    @include('partials.chart-card')
     <script>
         // ==================== DASHBOARD TAB CHARTS (API-driven) ====================
         window.dtcChartInstances = window.dtcChartInstances || {};
@@ -541,14 +582,14 @@
                     if (window.dtcTrafficChart) window.dtcTrafficChart.destroy();
                     const ctx = document.getElementById('dtcFootTrafficChart');
                     if (ctx) {
-                        window.dtcTrafficChart = new Chart(ctx, {
+                        registerChart('dtcFootTrafficChart', new Chart(ctx, {
                             type: 'bar',
                             data: {
                                 labels: DTC_MONTHS,
                                 datasets: [{ label: 'Visitors', data: vals, backgroundColor: '#0891b2', borderRadius: 6 }]
                             },
                             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-                        });
+                        }));
                     }
                 });
 
@@ -561,14 +602,14 @@
                     if (window.dtcDemoChart) window.dtcDemoChart.destroy();
                     const ctx = document.getElementById('dtcDemographicsChart');
                     if (ctx) {
-                        window.dtcDemoChart = new Chart(ctx, {
+                        registerChart('dtcDemographicsChart', new Chart(ctx, {
                             type: 'doughnut',
                             data: {
                                 labels: Object.keys(sectors),
                                 datasets: [{ data: Object.values(sectors), backgroundColor: colors.slice(0, Object.keys(sectors).length) }]
                             },
                             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
-                        });
+                        }));
                     }
                 });
 
@@ -578,14 +619,14 @@
                     if (window.dtcServicesChart) window.dtcServicesChart.destroy();
                     const ctx = document.getElementById('dtcServicesAvailedChart');
                     if (ctx) {
-                        window.dtcServicesChart = new Chart(ctx, {
+                        registerChart('dtcServicesAvailedChart', new Chart(ctx, {
                             type: 'bar',
                             data: {
                                 labels: Object.keys(data).map(s => s.length > 25 ? s.substring(0, 25) + '...' : s),
                                 datasets: [{ label: 'Sessions', data: Object.values(data), backgroundColor: '#10b981', borderRadius: 6 }]
                             },
                             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-                        });
+                        }));
                     }
                 });
         }

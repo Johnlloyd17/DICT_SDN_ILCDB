@@ -6,11 +6,11 @@ use App\Models\Participant;
 use App\Models\TrainingBatch;
 use App\Models\DtcHub;
 use App\Models\DtcCenterInventory;
-use App\Models\DtcVisitorLog;
 use App\Models\ClickDevice;
 use App\Models\FundingRecord;
 use App\Models\Course;
 use App\Models\Trainer;
+use App\Models\Visit;
 
 class DashboardController extends Controller
 {
@@ -27,7 +27,7 @@ class DashboardController extends Controller
         $totalBudget = FundingRecord::sum('disbursed');
         $totalAllocated = FundingRecord::sum('allocated');
         $totalObligated = FundingRecord::sum('obligated');
-        $totalFootTraffic = DtcVisitorLog::count();
+        $totalFootTraffic = Visit::count();
         $clickBeneficiaries = ClickDevice::sum('quantity');
 
         $projectFunding = FundingRecord::select('project')
@@ -71,7 +71,7 @@ class DashboardController extends Controller
             $year = (string) $y;
             $trainees = Participant::whereYear('created_at', $year)->count();
             $budgetDisbursed = FundingRecord::whereYear('transaction_date', $year)->sum('disbursed');
-            $footTraffic = DtcVisitorLog::whereYear('visit_date', $year)->count();
+            $footTraffic = Visit::whereYear('check_in_time', $year)->count();
             $beneficiaries = ClickDevice::whereYear('donation_date', $year)->sum('quantity');
 
             $historicalData[] = (object) [

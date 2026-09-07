@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DtcCenterInventory;
 use App\Models\DtcHub;
-use App\Models\DtcVisitorLog;
+use App\Models\Visit;
 use Illuminate\Http\Request;
 
 class SdnPdiController extends Controller
@@ -20,11 +20,11 @@ class SdnPdiController extends Controller
         $municipalityStats = [];
         foreach ($municipalities as $muni) {
             $hubIds = DtcHub::where('municipality', $muni)->pluck('id');
-            $logs = DtcVisitorLog::whereIn('dtc_hub_id', $hubIds);
+            $logs = Visit::whereIn('dtc_hub_id', $hubIds);
             $municipalityStats[$muni] = [
                 'hub_count' => $hubIds->count(),
                 'visitor_count' => $logs->count(),
-                'unique_citizens' => (clone $logs)->distinct('visitor_name')->count('visitor_name'),
+                'unique_citizens' => (clone $logs)->distinct('visitor_id')->count('visitor_id'),
                 'hub_names' => DtcHub::where('municipality', $muni)->pluck('name')->implode(', '),
             ];
         }
@@ -63,12 +63,12 @@ class SdnPdiController extends Controller
         $tab = $request->input('tab', 'dashboard');
         $activeTab = in_array($tab, ['dashboard', 'pdi'], true) ? $tab : 'dashboard';
         $sdnView = (bool)$request->input('sdn_view', false);
-        $sdnQuery = DtcVisitorLog::with('dtcHub');
+        $sdnQuery = Visit::with('dtcHub');
         if ($selectedMuni !== 'ALL') {
             $hubIds = DtcHub::where('municipality', $selectedMuni)->pluck('id');
             $sdnQuery->whereIn('dtc_hub_id', $hubIds);
         }
-        $sdnVisitors = $sdnQuery->orderByDesc('visit_date')->paginate(10, ['*'], 'sdn_page')->withQueryString();
+        $sdnVisitors = $sdnQuery->orderByDesc('check_in_time')->paginate(10, ['*'], 'sdn_page')->withQueryString();
 
         // Center Inventory
         $sdnCenters = DtcCenterInventory::query();

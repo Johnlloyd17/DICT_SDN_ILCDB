@@ -332,11 +332,12 @@
                 <span x-text="notice"></span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4">
-                        <i class="fa-solid fa-map-location-dot text-blue-600"></i> Municipal Trainee Distribution
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('tmdPenetrationChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+                    <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4 cursor-pointer select-none">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-blue-600"></i> Municipal Trainee Distribution</span>
+                        <i class="fa-solid text-slate-400 ml-auto" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
                     </h3>
-                    <div class="h-64 relative">
+                    <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                         <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                             <div class="space-y-3 w-full px-8 animate-pulse">
                                 <div class="h-3 bg-slate-200 rounded w-1/4"></div>
@@ -346,11 +347,12 @@
                         <canvas id="tmdPenetrationChart" :class="loading ? 'opacity-0' : 'opacity-100'"></canvas>
                     </div>
                 </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
-                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4">
-                        <i class="fa-solid fa-users text-purple-600"></i> Target Demographic Breakdown
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm" x-data="{ loading: true, ...chartCard('tmdDemographicsChart') }" x-init="$nextTick(() => setTimeout(() => loading = false, 800))">
+                    <h3 @click="toggle()" class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-4 cursor-pointer select-none">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-users text-purple-600"></i> Target Demographic Breakdown</span>
+                        <i class="fa-solid text-slate-400 ml-auto" :class="collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
                     </h3>
-                    <div class="h-64 relative">
+                    <div x-show="!collapsed" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-y-75 origin-top" x-transition:enter-end="opacity-100 scale-y-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-y-100 origin-top" x-transition:leave-end="opacity-0 scale-y-75" class="h-64 relative">
                         <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
                             <div class="space-y-3 w-3/4 animate-pulse">
                                 <div class="h-36 w-36 rounded-full bg-slate-100 mx-auto"></div>
@@ -1227,6 +1229,7 @@
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @include('partials.chart-card')
     <script>
     window._fmtDate = function(d) {
         if (!d) return '-';
@@ -1606,7 +1609,7 @@
         const muniCtx = document.getElementById('tmdPenetrationChart');
         if (muniCtx) {
             const labels = penetrationData.map(r => r.municipality);
-            new Chart(muniCtx, {
+            registerChart('tmdPenetrationChart', new Chart(muniCtx, {
                 type: 'bar',
                 data: {
                     labels: labels,
@@ -1624,7 +1627,7 @@
                         x: { ticks: { font: { size: 9 } } }
                     }
                 }
-            });
+            }));
         }
 
         const demoCtx = document.getElementById('tmdDemographicsChart');
@@ -1635,14 +1638,14 @@
                     const sectors = {};
                     data.forEach(p => { sectors[p.agency_sector] = (sectors[p.agency_sector] || 0) + 1; });
                     const colors = ['#003366','#0055A5','#CE1126','#D4AF37','#FCD116','#10b981','#8b5cf6'];
-                    new Chart(demoCtx, {
+                    registerChart('tmdDemographicsChart', new Chart(demoCtx, {
                         type: 'doughnut',
                         data: {
                             labels: Object.keys(sectors),
                             datasets: [{ data: Object.values(sectors), backgroundColor: colors.slice(0, Object.keys(sectors).length) }]
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
-                    });
+                    }));
                 });
         }
     };

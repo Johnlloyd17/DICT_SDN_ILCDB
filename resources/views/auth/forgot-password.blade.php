@@ -6,6 +6,16 @@
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
+    @if (session('reset_url'))
+        <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p class="text-sm text-green-800 font-semibold mb-2">Your password reset link is ready:</p>
+            <a href="{{ session('reset_url') }}" class="inline-block mt-2 text-white bg-green-600 hover:bg-green-700 font-bold py-2 px-4 rounded">
+                Click here to reset your password
+            </a>
+            <p class="text-xs text-green-700 mt-2 break-all">{{ session('reset_url') }}</p>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('password.email') }}">
         @csrf
 

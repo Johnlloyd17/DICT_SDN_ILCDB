@@ -22,6 +22,7 @@ class Trainer extends Model
         'courses',
         'rating',
         'accreditation',
+        'profile_image',
         'status',
     ];
 
