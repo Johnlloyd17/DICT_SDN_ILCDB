@@ -105,9 +105,11 @@ class VisitorController extends Controller
             });
         }
 
-        $allowedPerPage = [5, 10, 15, 20, 30, 40, 50, 100, 150, 200];
-        $centerPerPage = in_array((int)$request->get('c_per_page'), $allowedPerPage, true) ? (int)$request->get('c_per_page') : 15;
-        $centers = $centerQuery->orderBy('municipality_city')->orderBy('barangay')->paginate($centerPerPage, ['*'], 'c_page')->withQueryString();
+        // The Centers tab table is paginated/filtered on the client side
+        // (search box, municipality/status dropdowns, rows-per-page selector
+        // are all Alpine.js). Fetch the full dataset so the client-side
+        // pagination sees every row instead of only the server's default page.
+        $centers = $centerQuery->orderBy('municipality_city')->orderBy('barangay')->get();
 
         $municipalities = DtcCenterInventory::distinct()->orderBy('municipality_city')->pluck('municipality_city');
         $totalCenters = DtcCenterInventory::count();
@@ -172,8 +174,7 @@ class VisitorController extends Controller
         if ($request->filled('connectivity') && $request->connectivity !== 'ALL') {
             $sdnCenters->where('connectivity_status', $request->connectivity);
         }
-        $sdnPerPage = in_array((int)$request->get('s_per_page'), $allowedPerPage, true) ? (int)$request->get('s_per_page') : 10;
-        $sdnCenters = $sdnCenters->orderBy('municipality_city')->orderBy('barangay')->paginate($sdnPerPage, ['*'], 'sdn_page')->withQueryString();
+        $sdnCenters = $sdnCenters->orderBy('municipality_city')->orderBy('barangay')->get();
 
         $totalCenterCount = DtcCenterInventory::count();
         $servicesOperationalCenters = DtcCenterInventory::where('operational_status', 'Operational')->count();

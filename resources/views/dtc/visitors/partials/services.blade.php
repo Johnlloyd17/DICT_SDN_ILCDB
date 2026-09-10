@@ -289,7 +289,7 @@
 
 {{-- SDN Overview & Management Views --}}
 <div x-data="{
-    allSdnCenters: {{ json_encode($sdnCenters->items(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
+    allSdnCenters: {{ json_encode($sdnCenters, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
     filterMuni: '{{ request('muni', 'ALL') }}',
     filterOperational: '{{ request('s_operational', 'ALL') }}',
     filterConnectivity: '{{ request('connectivity', 'ALL') }}',

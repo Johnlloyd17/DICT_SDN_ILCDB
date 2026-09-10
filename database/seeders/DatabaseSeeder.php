@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             SparkTraineeSeeder::class,
             ClickDeviceSeeder::class,
             TmdPenetrationSeeder::class,
-            DtcCenterInventorySeeder::class,
+
         ]);
     }
 }

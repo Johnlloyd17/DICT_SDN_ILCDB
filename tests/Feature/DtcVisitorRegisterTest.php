@@ -311,4 +311,58 @@ class DtcVisitorRegisterTest extends TestCase
 
         $this->assertDatabaseMissing('dtc_services', ['id' => $service->id]);
     }
+
+    public function test_centers_tab_receives_all_centers_for_client_side_pagination(): void
+    {
+        \App\Models\DtcCenterInventory::truncate();
+
+        for ($i = 1; $i <= 65; $i++) {
+            \App\Models\DtcCenterInventory::create([
+                'municipality_city' => $i % 2 === 0 ? 'Surigao City' : 'Mainit',
+                'center_name' => "Test Center {$i}",
+                'barangay' => "Barangay {$i}",
+            ]);
+        }
+
+        $response = $this->actingAs($this->user())
+            ->get(route('dtc.visitors.index', ['view' => 'centers']));
+
+        $response->assertStatus(200);
+        $response->assertViewHas('totalCenters', 65);
+
+        // The client-side table needs the FULL dataset in the view, not just
+        // the server's default 15-row page (regression for "showing 15 of 65").
+        $response->assertViewHas('centers', function ($centers) {
+            return $centers->count() === 65;
+        });
+
+        // KPI card must say 65
+        $response->assertSee('65', false);
+    }
+
+    public function test_dashboard_widget_receives_all_sdn_centers_for_client_side_pagination(): void
+    {
+        \App\Models\DtcCenterInventory::truncate();
+
+        for ($i = 1; $i <= 65; $i++) {
+            \App\Models\DtcCenterInventory::create([
+                'municipality_city' => $i % 2 === 0 ? 'Surigao City' : 'Mainit',
+                'center_name' => "Test Center {$i}",
+                'barangay' => "Barangay {$i}",
+            ]);
+        }
+
+        $response = $this->actingAs($this->user())
+            ->get(route('dtc.visitors.index', ['view' => 'dashboard']));
+
+        $response->assertStatus(200);
+        $response->assertViewHas('totalCenters', 65);
+
+        // Dashboard-tab "DTC Center Inventory" widget is client-side and needs
+        // the FULL dataset, not the server's default 10-row sdn page (regression
+        // for "showing 1-10 of 10" while Total Centers is 65).
+        $response->assertViewHas('sdnCenters', function ($centers) {
+            return $centers->count() === 65;
+        });
+    }
 }

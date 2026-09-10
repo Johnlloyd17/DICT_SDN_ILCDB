@@ -52,7 +52,7 @@
 
 {{-- TABLE SECTION --}}
 <div x-data="{
-    allCenters: {{ json_encode($centers->items(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
+    allCenters: {{ json_encode($centers, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
     selectedIds: [],
     search: '{{ request('c_search', '') }}',
     filterMunicipality: '{{ request('municipality', 'ALL') }}',

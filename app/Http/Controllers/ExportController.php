@@ -210,28 +210,9 @@ class ExportController extends Controller
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
             ];
 
-            // Row 1: grouped headers (merged) and row-span headers
-            $sheet->mergeCells('A1:A2');
-            $sheet->setCellValue('A1', 'No.');
-            $sheet->mergeCells('B1:F1');
-            $sheet->setCellValue('B1', 'CENTER DETAILS');
-            $sheet->mergeCells('G1:I1');
-            $sheet->setCellValue('G1', 'GPS COORDINATES');
-            $sheet->mergeCells('J1:M1');
-            $sheet->setCellValue('J1', 'DATE ESTABLISHED');
-            $sheet->mergeCells('N1:P1');
-            $sheet->setCellValue('N1', 'TCMS');
-            $sheet->mergeCells('Q1:Q2');
-            $sheet->setCellValue('Q1', 'ODK Status');
-            $sheet->mergeCells('R1:R2');
-            $sheet->setCellValue('R1', 'Connectivity Status');
-            $sheet->mergeCells('S1:S2');
-            $sheet->setCellValue('S1', 'TYPE OF CENTER HOST');
-            $sheet->mergeCells('T1:T2');
-            $sheet->setCellValue('T1', 'Operational Status');
-
-            // Row 2: column headers
-            $columnHeaders = [
+            // Flat single-row header with disambiguated column names
+            $headers = [
+                'A' => 'No.',
                 'B' => 'Congressional District',
                 'C' => 'Province',
                 'D' => 'Municipality/City',
@@ -243,19 +224,23 @@ class ExportController extends Controller
                 'J' => 'MOA Date of Signing',
                 'K' => 'Date of Launching',
                 'L' => 'Date of Platform Registration',
-                'M' => 'Status',
-                'N' => 'Status',
-                'O' => 'Key',
-                'P' => 'Identifier',
+                'M' => 'TCMS Status',
+                'N' => 'TCMS Key',
+                'O' => 'TCMS Identifier',
+                'P' => 'TCMS Verification Status',
+                'Q' => 'ODK Status',
+                'R' => 'Connectivity Status',
+                'S' => 'Type of Center Host',
+                'T' => 'Operational Status',
             ];
-            foreach ($columnHeaders as $col => $label) {
-                $sheet->setCellValue("{$col}2", $label);
+            foreach ($headers as $col => $label) {
+                $sheet->setCellValue("{$col}1", $label);
             }
 
-            $sheet->getStyle('A1:T2')->applyFromArray($headerStyle);
+            $sheet->getStyle('A1:T1')->applyFromArray($headerStyle);
 
             // Data rows
-            $row = 3;
+            $row = 2;
             $idx = 1;
             \App\Models\DtcCenterInventory::orderBy('municipality_city')->orderBy('barangay')->each(function ($c) use ($sheet, &$row, &$idx) {
                 $sheet->setCellValue("A{$row}", $idx++);
@@ -271,9 +256,9 @@ class ExportController extends Controller
                 $sheet->setCellValue("K{$row}", $c->date_of_launching?->format('Y-m-d') ?? '');
                 $sheet->setCellValue("L{$row}", $c->date_of_platform_registration?->format('Y-m-d') ?? '');
                 $sheet->setCellValue("M{$row}", $c->tcms_status ?? '');
-                $sheet->setCellValue("N{$row}", $c->tcms_verification_status ?? '');
-                $sheet->setCellValue("O{$row}", $c->tcms_key ?? '');
-                $sheet->setCellValue("P{$row}", $c->tcms_identifier ?? '');
+                $sheet->setCellValue("N{$row}", $c->tcms_key ?? '');
+                $sheet->setCellValue("O{$row}", $c->tcms_identifier ?? '');
+                $sheet->setCellValue("P{$row}", $c->tcms_verification_status ?? '');
                 $sheet->setCellValue("Q{$row}", $c->odk_status ?? '');
                 $sheet->setCellValue("R{$row}", $c->connectivity_status ?? '');
                 $sheet->setCellValue("S{$row}", $c->type_of_center_host ?? '');
@@ -282,12 +267,12 @@ class ExportController extends Controller
             });
 
             $lastRow = $row - 1;
-            if ($lastRow >= 3) {
-                $sheet->getStyle("A3:T{$lastRow}")->applyFromArray([
+            if ($lastRow >= 2) {
+                $sheet->getStyle("A2:T{$lastRow}")->applyFromArray([
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                     'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
                 ]);
-                $sheet->getStyle("A3:A{$lastRow}")->applyFromArray([
+                $sheet->getStyle("A2:A{$lastRow}")->applyFromArray([
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                 ]);
             }
@@ -295,14 +280,14 @@ class ExportController extends Controller
             $widths = [
                 'A' => 6, 'B' => 18, 'C' => 18, 'D' => 20, 'E' => 20, 'F' => 34,
                 'G' => 12, 'H' => 12, 'I' => 10, 'J' => 18, 'K' => 18, 'L' => 24,
-                'M' => 12, 'N' => 18, 'O' => 14, 'P' => 20, 'Q' => 12, 'R' => 16,
+                'M' => 14, 'N' => 18, 'O' => 18, 'P' => 24, 'Q' => 12, 'R' => 16,
                 'S' => 22, 'T' => 16,
             ];
             foreach ($widths as $col => $width) {
                 $sheet->getColumnDimension($col)->setWidth($width);
             }
-            $sheet->setAutoFilter('A1:T' . max(3, $lastRow));
-            $sheet->freezePane('A3');
+            $sheet->setAutoFilter('A1:T' . max(2, $lastRow));
+            $sheet->freezePane('A2');
 
             $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
