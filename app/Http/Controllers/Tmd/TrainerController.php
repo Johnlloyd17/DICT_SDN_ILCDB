@@ -62,6 +62,42 @@ class TrainerController extends Controller
         return response()->json(['message' => 'Trainer deleted successfully.']);
     }
 
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = array_values(array_unique($request->ids));
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($ids as $id) {
+            $trainer = Trainer::find($id);
+            if (! $trainer) {
+                $skipped[] = ['id' => $id, 'label' => "ID {$id}", 'reason' => 'Trainer not found.'];
+
+                continue;
+            }
+
+            try {
+                $this->deletePhotoFile($trainer);
+                $trainer->delete();
+                $deleted++;
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $trainer->id, 'label' => $trainer->full_name, 'reason' => $e->getMessage()];
+            }
+        }
+
+        $message = "Successfully deleted {$deleted} trainer(s).";
+        if (! empty($skipped)) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        return response()->json(compact('message', 'deleted', 'skipped'));
+    }
+
     public function uploadPhoto(Request $request, Trainer $trainer)
     {
         $request->validate([

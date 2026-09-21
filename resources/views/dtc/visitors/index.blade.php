@@ -551,6 +551,26 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     @include('partials.chart-card')
     <script>
+        // ==================== DTC KPI CARDS (Alpine) ====================
+        window.dtcStats = function () {
+            return {
+                traffic: {{ $totalTraffic ?? 0 }},
+                unique: {{ $uniqueCitizens ?? 0 }},
+                topService: @json($topService ?? '—'),
+                topServiceCount: {{ ($servicesCount[$topService] ?? 0) }},
+                avgDaily: {{ $avgDaily ?? 0 }},
+                applyStats(d) {
+                    if (!d) return;
+                    if (typeof d.totalTraffic !== 'undefined') this.traffic = d.totalTraffic;
+                    if (typeof d.uniqueCitizens !== 'undefined') this.unique = d.uniqueCitizens;
+                    if (typeof d.topService !== 'undefined') this.topService = d.topService;
+                    if (typeof d.topServiceCount !== 'undefined') this.topServiceCount = d.topServiceCount;
+                    if (typeof d.avgDaily !== 'undefined') this.avgDaily = d.avgDaily;
+                },
+                fmt(n) { return Number(n || 0).toLocaleString(); }
+            };
+        };
+
         // ==================== DASHBOARD TAB CHARTS (API-driven) ====================
         window.dtcChartInstances = window.dtcChartInstances || {};
         let dtcTrafficChart = null, dtcDemoChart = null, dtcServicesChart = null;

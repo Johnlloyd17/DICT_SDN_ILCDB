@@ -18,8 +18,6 @@ return new class extends Migration
             json_encode($logs->map(fn ($l) => (array) $l)->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
         );
 
-        $this->seedHubServices();
-
         $visitorIds = [];
         $year = date('Y');
         $seq = 0;
@@ -27,7 +25,7 @@ return new class extends Migration
         foreach ($logs as $log) {
             $nameKey = mb_strtolower(trim($log->visitor_name));
 
-            if (!isset($visitorIds[$nameKey])) {
+            if (! isset($visitorIds[$nameKey])) {
                 $visitorIds[$nameKey] = DB::table('visitors')->insertGetId([
                     'name' => $log->visitor_name,
                     'contact_number' => null,
@@ -44,7 +42,7 @@ return new class extends Migration
 
             $seq++;
             $visitId = DB::table('visits')->insertGetId([
-                'visit_code' => 'DTC-VIS-' . $year . '-' . str_pad($seq, 3, '0', STR_PAD_LEFT),
+                'visit_code' => 'DTC-VIS-'.$year.'-'.str_pad($seq, 3, '0', STR_PAD_LEFT),
                 'visitor_id' => $visitorIds[$nameKey],
                 'dtc_hub_id' => $log->dtc_hub_id,
                 'purpose_of_visit' => null,
@@ -65,7 +63,7 @@ return new class extends Migration
                     ->where('service_name', $serviceName)
                     ->first();
 
-                if (!$service) {
+                if (! $service) {
                     $service = DB::table('dtc_services')
                         ->where('service_name', $serviceName)
                         ->first();
@@ -121,37 +119,9 @@ return new class extends Migration
         }
     }
 
-    private function seedHubServices(): void
-    {
-        if ((int) DB::table('dtc_services')->count() > 0) {
-            return;
-        }
-
-        $services = [
-            ['Free High-Speed Internet', 'Internet/Connectivity'],
-            ['eGov PH & Government Portal Access', 'Internet/Connectivity'],
-            ['Printing & Document Scanning', 'Productivity'],
-            ['Co-working & Freelance Space', 'Productivity'],
-            ['Tech Assistance & Consultation', 'Support'],
-        ];
-
-        foreach (DB::table('dtc_hubs')->pluck('id') as $hubId) {
-            foreach ($services as [$name, $category]) {
-                DB::table('dtc_services')->insert([
-                    'dtc_hub_id' => $hubId,
-                    'service_name' => $name,
-                    'category' => $category,
-                    'is_active' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-    }
-
     private function parseCheckOut(?string $checkIn, ?string $duration): ?string
     {
-        if (!$checkIn || !$duration) {
+        if (! $checkIn || ! $duration) {
             return null;
         }
 

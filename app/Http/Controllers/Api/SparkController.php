@@ -22,11 +22,11 @@ class SparkController extends Controller
         $trainees = SparkTrainee::select('employment_status', 'municipality', 'monthly_earnings')->get();
 
         $employmentCounts = $trainees->groupBy('employment_status')
-            ->map(fn($items) => $items->count())
+            ->map(fn ($items) => $items->count())
             ->toArray();
 
         $municipalityCounts = $trainees->groupBy('municipality')
-            ->map(fn($items) => $items->count())
+            ->map(fn ($items) => $items->count())
             ->toArray();
 
         return response()->json([
@@ -40,11 +40,11 @@ class SparkController extends Controller
         $trainings = SparkTraining::select('track_id', 'specialization', 'budget_allocated', 'status')->get();
 
         $budgetByStatus = $trainings->groupBy('status')
-            ->map(fn($items) => $items->sum('budget_allocated'))
+            ->map(fn ($items) => $items->sum('budget_allocated'))
             ->toArray();
 
         $enrolledByStatus = $trainings->groupBy('status')
-            ->map(fn($items) => $items->sum('enrolled_count'))
+            ->map(fn ($items) => $items->sum('enrolled_count'))
             ->toArray();
 
         return response()->json([

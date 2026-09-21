@@ -10,9 +10,6 @@
             <p class="text-sm text-purple-200 mt-1">Real-time financial tracking, fund cluster allocations, and disbursement monitoring.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-            <button x-data x-on:click="$dispatch('open-modal', 'addFunding')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center shadow transition">
-                <i class="fa-solid fa-plus mr-1"></i> Add Record
-            </button>
             <a href="{{ route('export.csv', 'funding') }}" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center transition">
                 <i class="fa-solid fa-download mr-1"></i> Export
             </a>
@@ -190,9 +187,14 @@
         </div>
 
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                <i class="fa-solid fa-ledger text-purple-700"></i> Financial Ledger - Disbursement Accountability
-            </h3>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-ledger text-purple-700"></i> Financial Ledger - Disbursement Accountability
+                </h3>
+                <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition inline-flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> Delete Selected (<span x-text="selectedIds.length"></span>)
+                </button>
+            </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <select x-model="projectFilter" class="text-xs p-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500">
                     <option value="">All Projects</option>
@@ -208,6 +210,9 @@
                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                     <input type="text" x-model="search" placeholder="Search voucher, description..." class="text-xs pl-8 pr-3 py-2.5 border border-slate-300 rounded-lg outline-none bg-slate-50 font-medium text-slate-700 focus:ring-2 focus:ring-purple-500 w-full sm:w-56">
                 </div>
+                <button x-data x-on:click="$dispatch('open-modal', 'addFunding')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-[11px] font-bold transition inline-flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-plus"></i> Add Record
+                </button>
             </div>
         </div>
 
@@ -215,6 +220,9 @@
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-800 text-white uppercase font-bold text-[11px] tracking-wider">
                     <tr>
+                        <th class="px-4 py-3 w-10">
+                            <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-purple-700 focus:ring-purple-500 cursor-pointer" title="Select All On This Page">
+                        </th>
                         <th class="px-4 py-3">Voucher Ref</th>
                         <th class="px-4 py-3">Project</th>
                         <th class="px-4 py-3">Description</th>
@@ -229,7 +237,10 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
                     <template x-for="r in pagedRecords" :key="r.id">
-                        <tr class="hover:bg-slate-50 transition">
+                        <tr class="hover:bg-slate-50 transition" :class="selectedIds.includes(r.id) ? 'bg-purple-50/60' : ''">
+                            <td class="px-4 py-3">
+                                <input type="checkbox" :value="r.id" x-model.number="selectedIds" class="rounded text-purple-700 focus:ring-purple-500 cursor-pointer">
+                            </td>
                             <td class="px-4 py-3 font-mono text-[11px] font-bold text-purple-700" x-text="r.voucher_ref"></td>
                             <td class="px-4 py-3"><span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold" x-text="r.project"></span></td>
                             <td class="px-4 py-3 max-w-[180px] truncate" :title="r.description" x-text="r.description"></td>
@@ -244,6 +255,7 @@
                                 <span x-show="r.status === 'Pending'" class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Pending</span>
                             </td>
                             <td class="px-4 py-3 text-center">
+                                <button x-on:click="openEdit(r)" class="text-blue-500 hover:text-blue-700 text-xs mr-1" title="Edit"><i class="fa-solid fa-pen"></i></button>
                                 <button x-on:click="deleteRecord(r)" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
                         </tr>
@@ -257,22 +269,14 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3 mt-4">
-            <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                <span>Rows per page:</span>
-                <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700">
-                    <template x-for="n in [5, 10, 15, 20, 30, 50]" :key="n"><option :value="n" x-text="n"></option></template>
-                </select>
-            </div>
-            <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}–${pageTo} of ${filteredRecords.length}`"></div>
-            <div class="flex items-center gap-1">
-                <button x-on:click="page--" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                <template x-for="p in pageNumbers" :key="'fp'+p">
-                    <button x-on:click="page = p" :class="page === p ? 'bg-purple-600 text-white border-purple-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border" x-text="p"></button>
-                </template>
-                <button x-on:click="page++" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-            </div>
-            </div>
+        <x-data-table-footer
+            showing="`Showing ${pageFrom}–${pageTo} of ${filteredRecords.length}`"
+            pageExpr="page = pg"
+            prevClick="page--"
+            nextClick="page++"
+            perPage="perPage"
+            keyPrefix="fp"
+        />
 
         {{-- ADD FUNDING MODAL --}}
         <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addFunding')" x-on:close-modal.window="if ($event.detail === 'addFunding') show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -282,6 +286,16 @@
                     <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
                 </div>
                 <form id="addFundingForm" x-on:submit.prevent="addRecord($event.target)" class="p-6 space-y-4 text-xs">
+                    <template x-if="addFormErrors.length">
+                        <div class="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-2.5 text-xs font-semibold flex items-start gap-2">
+                            <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                            <div class="space-y-1">
+                                <template x-for="(err, i) in addFormErrors" :key="i">
+                                    <div x-text="err"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block font-semibold text-slate-700 mb-1">Project <span class="text-red-500">*</span></label>
@@ -345,6 +359,84 @@
                 </form>
             </div>
         </div>
+
+        {{-- EDIT FUNDING MODAL --}}
+        <div x-show="showEdit" x-cloak x-transition.opacity x-on:keydown.escape.window="showEdit = false" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div x-show="showEdit" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full overflow-x-hidden overflow-y-auto border border-slate-200 max-h-[90vh] custom-scrollbar">
+                <div class="bg-dict-blue text-white px-6 py-4 flex items-center justify-between">
+                    <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-pen text-yellow-400"></i> Edit Funding Record</h3>
+                    <button x-on:click="showEdit = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form id="editFundingForm" x-on:submit.prevent="updateRecord($event.target)" class="p-6 space-y-4 text-xs">
+                    <template x-if="formError">
+                        <div class="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-2.5 text-xs font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span x-text="formError"></span>
+                        </div>
+                    </template>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Project <span class="text-red-500">*</span></label>
+                            <select name="project" required x-model="editForm.project" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="DWIA-TMD">DWIA-TMD</option>
+                                <option value="DTC HUB">DTC HUB</option>
+                                <option value="SPARK">SPARK</option>
+                                <option value="PROJECT CLICK">PROJECT CLICK</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Voucher # <span class="text-red-500">*</span></label>
+                            <input type="text" name="voucher_ref" required x-model="editForm.voucher_ref" placeholder="e.g. DV-2026-01-012" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
+                        <textarea name="description" required rows="2" x-model="editForm.description" placeholder="e.g. Training Materials & Honoraria" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
+                            <select name="expense_category" required x-model="editForm.expense_category" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="MOOE - Training & Seminars">MOOE - Training & Seminars</option>
+                                <option value="Supplies & Logistics">Supplies & Logistics</option>
+                                <option value="Honorarium & Consultancy">Honorarium & Consultancy</option>
+                                <option value="Capital Outlay - Equipment">Capital Outlay - Equipment</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Status <span class="text-red-500">*</span></label>
+                            <select name="status" required x-model="editForm.status" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="Pending">Pending</option>
+                                <option value="Obligated">Obligated</option>
+                                <option value="Disbursed">Disbursed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Allocated <span class="text-red-500">*</span></label>
+                            <input type="number" name="allocated" required step="0.01" min="0" x-model="editForm.allocated" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Obligated <span class="text-red-500">*</span></label>
+                            <input type="number" name="obligated" required step="0.01" min="0" x-model="editForm.obligated" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Disbursed <span class="text-red-500">*</span></label>
+                            <input type="number" name="disbursed" required step="0.01" min="0" x-model="editForm.disbursed" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Transaction Date <span class="text-red-500">*</span></label>
+                        <input type="date" name="transaction_date" required x-model="editForm.transaction_date" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" x-on:click="showEdit = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
+                        <button type="submit" form="editFundingForm" :disabled="saving" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Update Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     @push('scripts')
@@ -355,6 +447,8 @@
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const storeUrl = '{{ route("funding.store") }}';
         const destroyUrl = '{{ route("funding.destroy", ["funding" => "__ID__"]) }}';
+        const updateUrl = '{{ route("funding.update", ["funding" => "__ID__"]) }}';
+        const batchDeleteUrl = '{{ route("funding.batchDelete") }}';
         return {
             records: seed,
             search: '',
@@ -363,8 +457,13 @@
             saving: false,
             notice: '',
             noticeType: 'success',
+            showEdit: false,
+            editForm: {},
+            formError: '',
+            addFormErrors: [],
             page: 1,
             perPage: 10,
+            selectedIds: [],
             get projects() { return [...new Set(this.records.map(r => r.project))].sort(); },
             get filteredRecords() {
                 const q = this.search.trim().toLowerCase();
@@ -389,11 +488,25 @@
                 const start = (this.page - 1) * this.perPage;
                 return this.filteredRecords.slice(start, start + this.perPage);
             },
+            get allPageSelected() {
+                const pageIds = this.pagedRecords.map(r => r.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
+            toggleSelectAll() {
+                const pageIds = this.pagedRecords.map(r => r.id);
+                const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOnPage) {
+                    this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                }
+            },
             flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
-            init() { ['search','projectFilter','statusFilter'].forEach(k => this.$watch(k, () => this.page = 1)); },
+            init() { ['search','projectFilter','statusFilter'].forEach(k => this.$watch(k, () => { this.page = 1; this.selectedIds = []; })); },
             async addRecord(form) {
                 if (this.saving) return;
                 this.saving = true;
+                this.addFormErrors = [];
                 try {
                     const fd = new FormData(form);
                     const res = await fetch(storeUrl, {
@@ -401,13 +514,51 @@
                         headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
                         body: fd,
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.message || 'Failed to add record.');
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        const errors = data.errors || {};
+                        const lines = Object.keys(errors).map(field => `${field.replace(/_/g, ' ')}: ${errors[field].join(', ')}`);
+                        const msg = data.message || 'Failed to add record.';
+                        if (lines.length) {
+                            this.addFormErrors = lines;
+                            console.error('Add funding record failed:', res.status, data);
+                        } else {
+                            this.addFormErrors = [msg];
+                            console.error('Add funding record failed:', res.status, data);
+                        }
+                        return;
+                    }
                     this.records.unshift(data.record);
                     form.reset();
                     this.$dispatch('close-modal', 'addFunding');
                     this.flash('Funding record added successfully.');
                 } catch(e) { this.flash(e.message, 'error'); } finally { this.saving = false; }
+            },
+            async openEdit(r) {
+                this.editForm = Object.assign({}, r);
+                if (this.editForm.transaction_date) this.editForm.transaction_date = this.editForm.transaction_date.substring(0, 10);
+                this.formError = '';
+                this.showEdit = true;
+            },
+            async updateRecord(form) {
+                if (this.saving) return;
+                this.saving = true;
+                try {
+                    const fd = new FormData(form);
+                    fd.append('_method', 'PUT');
+                    const res = await fetch(updateUrl.replace('__ID__', this.editForm.id), {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                        body: fd,
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Failed to update record.');
+                    const idx = this.records.findIndex(x => x.id === data.record.id);
+                    if (idx > -1) this.records[idx] = data.record;
+                    this.showEdit = false;
+                    this.formError = '';
+                    this.flash('Funding record updated successfully.');
+                } catch(e) { this.formError = e.message; } finally { this.saving = false; }
             },
             async deleteRecord(r) {
                 if (!confirm('Delete this record?')) return;
@@ -419,8 +570,43 @@
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.message || 'Delete failed.');
                     this.records = this.records.filter(x => x.id !== r.id);
+                    this.selectedIds = this.selectedIds.filter(id => id !== r.id);
                     this.flash('Funding record deleted.');
                 } catch(e) { this.flash(e.message, 'error'); } finally { this.saving = false; }
+            },
+
+            async batchDelete() {
+                const ids = [...this.selectedIds];
+                if (!ids.length) return;
+                const labels = this.filteredRecords.filter(r => ids.includes(r.id)).map(r => r.voucher_ref);
+                window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                    detail: {
+                        title: 'Delete Funding Records',
+                        count: ids.length,
+                        labels,
+                        onConfirm: async () => {
+                            if (this.saving) return;
+                            this.saving = true;
+                            try {
+                                const res = await fetch(batchDeleteUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.message || 'Batch delete failed.');
+                                const skippedIds = (data.skipped || []).map(s => s.id);
+                                this.records = this.records.filter(r => !ids.includes(r.id) || skippedIds.includes(r.id));
+                                this.selectedIds = [];
+                                this.flash(data.message || 'Selected records deleted.', (data.skipped || []).length ? 'error' : 'success');
+                            } catch (e) {
+                                this.flash(e.message, 'error');
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    },
+                }));
             },
         };
     };

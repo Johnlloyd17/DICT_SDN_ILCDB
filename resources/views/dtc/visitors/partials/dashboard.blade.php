@@ -1,11 +1,11 @@
 {{-- KPI CARDS --}}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+<div x-data="dtcStats()" x-on:dtc-stats-updated.window="applyStats($event.detail)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
         <div class="flex items-center justify-between text-slate-500 mb-1">
             <span class="text-[11px] font-bold uppercase tracking-wider">Total Foot Traffic</span>
             <i class="fa-solid fa-shoe-prints text-cyan-600"></i>
         </div>
-        <h3 class="text-2xl font-black text-slate-800">{{ number_format($totalTraffic) }}</h3>
+        <h3 class="text-2xl font-black text-slate-800" x-text="fmt(traffic)"></h3>
         <p class="text-[10px] text-emerald-600 font-semibold">All recorded visits</p>
     </div>
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
@@ -13,7 +13,7 @@
             <span class="text-[11px] font-bold uppercase tracking-wider">Unique Citizens</span>
             <i class="fa-solid fa-users text-blue-600"></i>
         </div>
-        <h3 class="text-2xl font-black text-blue-700">{{ number_format($uniqueCitizens) }}</h3>
+        <h3 class="text-2xl font-black text-blue-700" x-text="fmt(unique)"></h3>
         <p class="text-[10px] text-slate-400 font-medium">Registered Visitors</p>
     </div>
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
@@ -21,15 +21,15 @@
             <span class="text-[11px] font-bold uppercase tracking-wider">Top Service</span>
             <i class="fa-solid fa-wifi text-emerald-600"></i>
         </div>
-        <h3 class="text-lg font-black text-emerald-700 leading-tight">{{ Str::limit($topService, 20) }}</h3>
-        <p class="text-[10px] text-emerald-600 font-semibold">{{ $servicesCount[$topService] ?? 0 }} sessions</p>
+        <h3 class="text-lg font-black text-emerald-700 leading-tight" x-text="topService.length > 20 ? topService.substring(0, 20) + '…' : topService"></h3>
+        <p class="text-[10px] text-emerald-600 font-semibold" x-text="topServiceCount + ' sessions'"></p>
     </div>
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-0">
         <div class="flex items-center justify-between text-slate-500 mb-1">
             <span class="text-[11px] font-bold uppercase tracking-wider">Avg Daily Visitors</span>
             <i class="fa-solid fa-user-clock text-amber-600"></i>
         </div>
-        <h3 class="text-2xl font-black text-amber-600">{{ $avgDaily }} / day</h3>
+        <h3 class="text-2xl font-black text-amber-600" x-text="avgDaily + ' / day'"></h3>
         <p class="text-[10px] text-slate-400">Across all hubs</p>
     </div>
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-w-0 col-span-2 md:col-span-1">
@@ -121,6 +121,10 @@
     perPage: 15,
     currentPage: 1,
     deleting: null,
+    selectedIds: [],
+    deletingBatch: false,
+    notice: '',
+    noticeType: 'success',
 
     get filtered() {
         let items = [...this.allVisitors];
@@ -173,9 +177,68 @@
             });
             if (res.ok) {
                 this.allVisitors = this.allVisitors.filter(v => v.id !== id);
+                this.selectedIds = this.selectedIds.filter(s => s !== id);
             }
         } catch(err) { console.error(err); }
         this.deleting = null;
+    },
+
+    get allPageSelected() {
+        const pageIds = this.paginated.map(r => r.id);
+        return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+    },
+    toggleSelectAll() {
+        const pageIds = this.paginated.map(r => r.id);
+        const allOn = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+        if (allOn) {
+            pageIds.forEach(id => { this.selectedIds = this.selectedIds.filter(s => s !== id); });
+        } else {
+            this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+        }
+    },
+    flash(msg, type) {
+        this.notice = msg; this.noticeType = type || 'success';
+        clearTimeout(this._nt); this._nt = setTimeout(() => this.notice = '', 5000);
+    },
+    batchDelete() {
+        if (!this.selectedIds.length || this.deletingBatch) return;
+        const labels = this.allVisitors.filter(v => this.selectedIds.includes(v.id)).map(v => (v.log_code || '') + ' \u2014 ' + (v.visitor_name || ''));
+        window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+            detail: {
+                title: 'Delete Visitor Logs',
+                count: this.selectedIds.length,
+                labels: labels,
+                warning: 'This action cannot be undone. Associated service records will also be removed.',
+                onConfirm: () => this.doBatchDelete()
+            }
+        }));
+    },
+    async doBatchDelete() {
+        this.deletingBatch = true;
+        try {
+            const res = await fetch('{{ route("dtc.visitors.batchDelete") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ ids: this.selectedIds })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Bulk delete failed.');
+            const deletedIds = (data.deleted || []).map(d => d.id);
+            const skippedIds = (data.skipped || []).map(s => s.id);
+            this.allVisitors = this.allVisitors.filter(v => !deletedIds.includes(v.id) || skippedIds.includes(v.id));
+            this.selectedIds = [];
+            if (this.currentPage > this.totalPages) this.currentPage = this.totalPages;
+            if (data.skipped && data.skipped.length) {
+                this.flash((data.skipped || []).map(s => s.label || s.id).join(', ') + ' skipped.', 'error');
+            } else {
+                this.flash(data.message || 'Visitor logs deleted.', 'success');
+            }
+            if (data.stats) window.dispatchEvent(new CustomEvent('dtc-stats-updated', { detail: data.stats }));
+            if (window.loadDtcCharts) window.loadDtcCharts(new Date().getFullYear());
+        } catch (err) {
+            this.flash(err.message || 'Bulk delete failed.', 'error');
+        }
+        this.deletingBatch = false;
     }
 }" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -184,6 +247,11 @@
                 <i class="fa-solid fa-clipboard-list text-cyan-600"></i> DTC Hub Visitor & Service Availed Register
             </h3>
             <p class="text-xs text-slate-500 mt-0.5">Comprehensive table listing individual citizen visits, demographic classification, and specific services utilized.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" :disabled="deletingBatch" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                <i class="fa-solid fa-trash-can mr-1"></i>Delete Selected (<span x-text="selectedIds.length"></span>)
+            </button>
         </div>
     </div>
 
@@ -209,10 +277,19 @@
         <input type="text" x-model.debounce.300ms="search" x-on:input="currentPage = 1" placeholder="Search name, ID, sector..." class="flex-1 min-w-40 text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white">
     </div>
 
+    <div x-show="notice" x-cloak x-transition class="mb-3 rounded-lg px-3 py-2 text-xs font-bold border shadow-sm flex items-center gap-2"
+         :class="noticeType === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+        <i class="fa-solid" :class="noticeType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+        <span x-text="notice"></span>
+    </div>
+
     <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
             <thead class="bg-slate-800 text-white uppercase font-bold text-[11px] tracking-wider">
                 <tr>
+                    <th class="px-4 py-3 w-10">
+                        <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer" title="Select All On This Page">
+                    </th>
                     <th class="px-4 py-3">Log ID & Date</th>
                     <th class="px-4 py-3">User Name & Gender/Age</th>
                     <th class="px-4 py-3 hidden md:table-cell">Demographic Sector</th>
@@ -224,7 +301,10 @@
             </thead>
             <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
                 <template x-for="(v, idx) in paginated" :key="v.id">
-                    <tr class="hover:bg-slate-50 transition">
+                    <tr class="hover:bg-slate-50 transition" :class="selectedIds.includes(v.id) ? 'bg-cyan-50/60' : ''">
+                        <td class="px-4 py-3">
+                            <input type="checkbox" :value="v.id" x-model.number="selectedIds" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer">
+                        </td>
                         <td class="px-4 py-3">
                             <span class="font-mono text-[11px] font-bold text-cyan-700" x-text="v.log_code"></span>
                             <br><span class="text-[10px] text-slate-400" x-text="formatDate(v.visit_date)"></span>
@@ -255,7 +335,7 @@
                 </template>
                 <template x-if="filtered.length === 0">
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-slate-400">
+                        <td colspan="8" class="px-4 py-12 text-center text-slate-400">
                             <i class="fa-solid fa-clipboard-list text-3xl mb-2 block"></i>
                             No visitor logs found.
                         </td>
@@ -265,15 +345,17 @@
         </table>
     </div>
 
-    <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-        <span>Showing <span x-text="filtered.length ? ((currentPage - 1) * perPage + 1) : 0"></span>–<span x-text="Math.min(currentPage * perPage, filtered.length)"></span> of <span x-text="filtered.length"></span> visitor logs</span>
+    <x-data-table-footer
+        showing="`Showing ${filtered.length ? ((currentPage - 1) * perPage + 1) : 0}–${Math.min(currentPage * perPage, filtered.length)} of ${filtered.length} visitor logs`"
+        pages="totalPages"
+        pageExpr="goToPage(pg)"
+        activeExpr="pg === currentPage"
+        prevClick="prevPage()"
+        nextClick="nextPage()"
+        prevDisabled="currentPage <= 1"
+        nextDisabled="currentPage >= totalPages"
+        keyPrefix="vl"
+    >
         <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-500"></span> Live Sync Active</span>
-    </div>
-    <div class="mt-2 flex items-center gap-1" x-show="totalPages > 1">
-        <button x-on:click="prevPage()" :disabled="currentPage <= 1" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">&laquo; Prev</button>
-        <template x-for="p in totalPages" :key="p">
-            <button x-on:click="goToPage(p)" :class="p === currentPage ? 'bg-cyan-700 text-white border-cyan-700' : 'border-slate-300 hover:bg-slate-100'" class="px-3 py-1 rounded-lg text-xs font-semibold border" x-text="p"></button>
-        </template>
-        <button x-on:click="nextPage()" :disabled="currentPage >= totalPages" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">Next &raquo;</button>
-    </div>
+    </x-data-table-footer>
 </div>

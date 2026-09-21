@@ -8,9 +8,6 @@
             <p class="text-sm text-yellow-100 mt-1">Participant records, employment tracking, earnings, and completion monitoring.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-            <button x-data x-on:click="$dispatch('open-modal', 'addTrainee')" class="bg-white/20 hover:bg-white/30 border border-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center shadow transition">
-                <i class="fa-solid fa-user-plus mr-1"></i> Add Trainee
-            </button>
             <a href="{{ route('export.csv', 'spark-trainees') }}" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center transition">
                 <i class="fa-solid fa-download mr-1"></i> Export
             </a>
@@ -117,6 +114,9 @@
                     <input type="text" x-model="search" placeholder="Search trainees..."
                         class="w-full sm:w-48 text-xs pl-8 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
                 </div>
+                <button x-data x-on:click="$dispatch('open-modal', 'addTrainee')" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-[11px] font-bold transition inline-flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-user-plus"></i> Add Trainee
+                </button>
             </div>
         </div>
 
@@ -161,22 +161,14 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3 mt-4">
-            <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                <span>Rows per page:</span>
-                <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-amber-500">
-                    <template x-for="n in [5, 10, 15, 20, 30, 50]" :key="n"><option :value="n" x-text="n"></option></template>
-                </select>
-            </div>
-            <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}–${pageTo} of ${filteredTrainees.length}`"></div>
-            <div class="flex items-center gap-1">
-                <button x-on:click="page--" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                <template x-for="p in pageNumbers" :key="'tp'+p">
-                    <button x-on:click="page = p" :class="page === p ? 'bg-amber-600 text-white border-amber-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border" x-text="p"></button>
-                </template>
-                <button x-on:click="page++" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-            </div>
-        </div>
+        <x-data-table-footer
+            showing="`Showing ${pageFrom}–${pageTo} of ${filteredTrainees.length}`"
+            pageExpr="page = pg"
+            prevClick="page--"
+            nextClick="page++"
+            perPage="perPage"
+            keyPrefix="tp"
+        />
 
     {{-- ADD TRAINEE MODAL --}}
     <div x-data="{ show: false }" x-on:open-modal.window="show = ($event.detail === 'addTrainee')" x-on:close-modal.window="if ($event.detail === 'addTrainee') show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">

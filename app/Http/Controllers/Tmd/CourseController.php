@@ -37,6 +37,7 @@ class CourseController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['course' => $course], 201);
         }
+
         return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
             ->with('success', 'Course added successfully.');
     }
@@ -44,7 +45,7 @@ class CourseController extends Controller
     public function update(Request $request, Course $course)
     {
         $request->validate([
-            'course_code' => 'required|string|max:50|unique:courses,course_code,' . $course->id,
+            'course_code' => 'required|string|max:50|unique:courses,course_code,'.$course->id,
             'title' => 'required|string|max:255',
             'specialty_track' => 'required|string|max:100',
             'format_type' => 'required|string|max:100',
@@ -70,6 +71,7 @@ class CourseController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['course' => $course->fresh()]);
         }
+
         return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
             ->with('success', 'Course updated successfully.');
     }
@@ -81,7 +83,48 @@ class CourseController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Course deleted.']);
         }
+
         return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
             ->with('success', 'Course deleted.');
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = array_values(array_unique($request->ids));
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($ids as $id) {
+            $course = Course::find($id);
+            if (! $course) {
+                $skipped[] = ['id' => $id, 'label' => "ID {$id}", 'reason' => 'Course not found.'];
+
+                continue;
+            }
+
+            try {
+                $course->delete();
+                $deleted++;
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $course->id, 'label' => $course->course_code, 'reason' => $e->getMessage()];
+            }
+        }
+
+        $message = "Successfully deleted {$deleted} course(s).";
+        if (! empty($skipped)) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(compact('message', 'deleted', 'skipped'));
+        }
+
+        return redirect()->route('tmd.participants.index', ['tab' => 'hub'])
+            ->with('success', $message);
     }
 }

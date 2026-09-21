@@ -2,9 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ClickDevice;
+use App\Models\Course;
+use App\Models\DtcCenterInventory;
+use App\Models\FundingRecord;
+use App\Models\Participant;
+use App\Models\SparkTrainee;
+use App\Models\SparkTraining;
 use App\Models\TrainingBatch;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use App\Models\Visit;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -15,7 +21,7 @@ class ExportController extends Controller
 {
     public function csv(string $module)
     {
-        $filename = $module . '_export_' . date('Y-m-d_His') . '.csv';
+        $filename = $module.'_export_'.date('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -28,7 +34,7 @@ class ExportController extends Controller
             switch ($module) {
                 case 'tmd-participants':
                     fputcsv($handle, ['Participant ID', 'Full Name', 'Batch Code', 'Course Title', 'Agency/LGU/Sector', 'Municipality', 'Completion Date', 'Certificate Status', 'Certificate Actions']);
-                    \App\Models\Participant::with('trainingBatch')->orderByDesc('id')->each(function ($p) use ($handle) {
+                    Participant::with('trainingBatch')->orderByDesc('id')->each(function ($p) use ($handle) {
                         fputcsv($handle, [
                             $p->participant_code,
                             $p->full_name,
@@ -45,7 +51,7 @@ class ExportController extends Controller
 
                 case 'tmd-batches':
                     fputcsv($handle, ['Batch Code', 'Course Title', 'Venue', 'Target', 'Enrolled', 'Trainer', 'Start Date', 'End Date', 'Status']);
-                    \App\Models\TrainingBatch::where('program', 'TMD')->orderByDesc('id')->each(function ($b) use ($handle) {
+                    TrainingBatch::where('program', 'TMD')->orderByDesc('id')->each(function ($b) use ($handle) {
                         fputcsv($handle, [
                             $b->batch_code, $b->course_title, $b->venue,
                             $b->target_count, $b->enrolled_count, $b->trainer_name,
@@ -56,7 +62,7 @@ class ExportController extends Controller
 
                 case 'tmd-courses':
                     fputcsv($handle, ['Course Code', 'Syllabus Title & Curriculum Details', 'Specialty Track', 'Format / Type', 'Duration', 'Accredited Credentials', 'Live Runs (Completed/Total)', 'Reference Folders', 'Action Deck']);
-                    \App\Models\Course::orderBy('course_code')->each(function ($c) use ($handle) {
+                    Course::orderBy('course_code')->each(function ($c) use ($handle) {
                         fputcsv($handle, [
                             $c->course_code, $c->title, $c->specialty_track,
                             $c->format_type, $c->duration_hours,
@@ -67,7 +73,7 @@ class ExportController extends Controller
 
                 case 'dtc-visitors':
                     fputcsv($handle, ['Log ID & Date', 'User Name', 'Gender', 'Age', 'Demographic Sector', 'DTC Hub Location', 'Services Availed', 'Duration', 'Action']);
-                    \App\Models\Visit::with('visitor', 'dtcHub', 'services')->orderByDesc('check_in_time')->each(function ($v) use ($handle) {
+                    Visit::with('visitor', 'dtcHub', 'services')->orderByDesc('check_in_time')->each(function ($v) use ($handle) {
                         fputcsv($handle, [
                             $v->visit_code,
                             $v->check_in_time?->format('M d, Y'),
@@ -84,7 +90,7 @@ class ExportController extends Controller
 
                 case 'spark-trainings':
                     fputcsv($handle, ['Track ID', 'Specialization Course', 'Master Trainer', 'Enrolled Trainees', 'Budget Allocated', 'Industry Partner', 'Status']);
-                    \App\Models\SparkTraining::orderByDesc('id')->each(function ($t) use ($handle) {
+                    SparkTraining::orderByDesc('id')->each(function ($t) use ($handle) {
                         fputcsv($handle, [
                             $t->track_id, $t->specialization, $t->master_trainer,
                             $t->enrolled_count, $t->budget_allocated, $t->industry_partner, $t->status,
@@ -94,7 +100,7 @@ class ExportController extends Controller
 
                 case 'spark-trainees':
                     fputcsv($handle, ['Trainee Code', 'Full Name', 'Specialty', 'Course', 'Municipality', 'Employment Status', 'Monthly Earnings']);
-                    \App\Models\SparkTrainee::orderByDesc('id')->each(function ($t) use ($handle) {
+                    SparkTrainee::orderByDesc('id')->each(function ($t) use ($handle) {
                         fputcsv($handle, [
                             $t->trainee_code, $t->full_name, $t->specialty, $t->course,
                             $t->municipality, $t->employment_status, $t->monthly_earnings,
@@ -104,7 +110,7 @@ class ExportController extends Controller
 
                 case 'click-devices':
                     fputcsv($handle, ['Batch ID', 'Donation Date', 'Device Type', 'Quantity', 'Beneficiary', 'Municipality', 'Status']);
-                    \App\Models\ClickDevice::orderByDesc('donation_date')->each(function ($d) use ($handle) {
+                    ClickDevice::orderByDesc('donation_date')->each(function ($d) use ($handle) {
                         fputcsv($handle, [
                             $d->batch_id, $d->donation_date->format('M d, Y'), $d->device_type,
                             $d->quantity, $d->beneficiary, $d->municipality, $d->status,
@@ -120,15 +126,15 @@ class ExportController extends Controller
                     }
                     $prev = 0;
                     foreach ($years as $year) {
-                        $trainees = \App\Models\Participant::whereYear('created_at', $year)->count();
-                        $budget = \App\Models\FundingRecord::whereYear('transaction_date', $year)->sum('disbursed');
-                        $traffic = \App\Models\Visit::whereYear('check_in_time', $year)->count();
-                        $beneficiaries = \App\Models\ClickDevice::whereYear('donation_date', $year)->sum('quantity');
+                        $trainees = Participant::whereYear('created_at', $year)->count();
+                        $budget = FundingRecord::whereYear('transaction_date', $year)->sum('disbursed');
+                        $traffic = Visit::whereYear('check_in_time', $year)->count();
+                        $beneficiaries = ClickDevice::whereYear('donation_date', $year)->sum('quantity');
                         $growth = $prev > 0 ? round(($trainees - $prev) / $prev * 100) : 0;
                         fputcsv($handle, [
-                            $year == date('Y') ? $year . ' (YTD)' : $year,
+                            $year == date('Y') ? $year.' (YTD)' : $year,
                             $trainees, $budget, $traffic, $beneficiaries,
-                            $growth ? $growth . '%' : '0%',
+                            $growth ? $growth.'%' : '0%',
                         ]);
                         $prev = $trainees;
                     }
@@ -136,7 +142,7 @@ class ExportController extends Controller
 
                 case 'centers':
                     fputcsv($handle, ['No.', 'Congressional District', 'Province', 'Municipality/City', 'Barangay', 'Center Name', 'Longitude', 'Latitude', 'Verified', 'MOA Date of Signing', 'Date of Launching', 'Date of Platform Registration', 'TCMS Status', 'TCMS Key', 'TCMS Identifier', 'TCMS Verification Status', 'ODK Status', 'Connectivity Status', 'Type of Center Host', 'Operational Status']);
-                    \App\Models\DtcCenterInventory::orderBy('municipality_city')->orderBy('barangay')->each(function ($c) use ($handle) {
+                    DtcCenterInventory::orderBy('municipality_city')->orderBy('barangay')->each(function ($c) use ($handle) {
                         fputcsv($handle, [
                             $c->id,
                             $c->congressional_district ?? '',
@@ -164,7 +170,7 @@ class ExportController extends Controller
 
                 case 'funding':
                     fputcsv($handle, ['Voucher Ref', 'Project', 'Description', 'Category', 'Allocated', 'Obligated', 'Disbursed', 'Transaction Date', 'Status']);
-                    \App\Models\FundingRecord::orderByDesc('transaction_date')->each(function ($r) use ($handle) {
+                    FundingRecord::orderByDesc('transaction_date')->each(function ($r) use ($handle) {
                         fputcsv($handle, [
                             $r->voucher_ref, $r->project, $r->description, $r->expense_category,
                             $r->allocated, $r->obligated, $r->disbursed,
@@ -186,7 +192,7 @@ class ExportController extends Controller
             abort(404);
         }
 
-        $filename = 'centers_export_' . date('Y-m-d_His') . '.xlsx';
+        $filename = 'centers_export_'.date('Y-m-d_His').'.xlsx';
 
         $headers = [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -195,7 +201,7 @@ class ExportController extends Controller
         ];
 
         $callback = function () {
-            $spreadsheet = new Spreadsheet();
+            $spreadsheet = new Spreadsheet;
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('DTC Center Inventory');
 
@@ -242,7 +248,7 @@ class ExportController extends Controller
             // Data rows
             $row = 2;
             $idx = 1;
-            \App\Models\DtcCenterInventory::orderBy('municipality_city')->orderBy('barangay')->each(function ($c) use ($sheet, &$row, &$idx) {
+            DtcCenterInventory::orderBy('municipality_city')->orderBy('barangay')->each(function ($c) use ($sheet, &$row, &$idx) {
                 $sheet->setCellValue("A{$row}", $idx++);
                 $sheet->setCellValue("B{$row}", $c->congressional_district ?? '');
                 $sheet->setCellValue("C{$row}", $c->province ?? '');
@@ -286,7 +292,7 @@ class ExportController extends Controller
             foreach ($widths as $col => $width) {
                 $sheet->getColumnDimension($col)->setWidth($width);
             }
-            $sheet->setAutoFilter('A1:T' . max(2, $lastRow));
+            $sheet->setAutoFilter('A1:T'.max(2, $lastRow));
             $sheet->freezePane('A2');
 
             $writer = new Xlsx($spreadsheet);
@@ -298,7 +304,7 @@ class ExportController extends Controller
 
     protected function formatDuration($checkIn, $checkOut): string
     {
-        if (!$checkIn || !$checkOut) {
+        if (! $checkIn || ! $checkOut) {
             return '—';
         }
         $minutes = (int) round($checkOut->diffInMinutes($checkIn));
@@ -307,12 +313,13 @@ class ExportController extends Controller
         }
         $h = intdiv($minutes, 60);
         $m = $minutes % 60;
+
         return $m > 0 ? "{$h} hr {$m} mins" : "{$h} hrs";
     }
 
     public function template(string $module)
     {
-        $filename = $module . '_template_' . date('Y-m-d') . '.csv';
+        $filename = $module.'_template_'.date('Y-m-d').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

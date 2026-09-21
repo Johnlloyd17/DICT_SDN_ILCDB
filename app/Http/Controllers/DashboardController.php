@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Participant;
-use App\Models\TrainingBatch;
-use App\Models\DtcHub;
-use App\Models\DtcCenterInventory;
 use App\Models\ClickDevice;
-use App\Models\FundingRecord;
 use App\Models\Course;
+use App\Models\DtcCenterInventory;
+use App\Models\DtcHub;
+use App\Models\FundingRecord;
+use App\Models\Participant;
 use App\Models\Trainer;
+use App\Models\TrainingBatch;
 use App\Models\Visit;
 
 class DashboardController extends Controller
@@ -38,7 +38,7 @@ class DashboardController extends Controller
             ->get();
 
         $hubs = DtcHub::where('status', 'Active')->get([
-            'id', 'name', 'municipality', 'latitude', 'longitude'
+            'id', 'name', 'municipality', 'latitude', 'longitude',
         ]);
 
         // Tech4ED / DTC centers from PDI center inventory with verified GPS coordinates
@@ -57,6 +57,7 @@ class DashboardController extends Controller
                     'SPARK' => '#d97706',
                     'CLICK' => '#059669',
                 ];
+
                 return [
                     'title' => $batch->course_title,
                     'start' => $batch->start_date->format('Y-m-d'),
@@ -75,7 +76,7 @@ class DashboardController extends Controller
             $beneficiaries = ClickDevice::whereYear('donation_date', $year)->sum('quantity');
 
             $historicalData[] = (object) [
-                'year' => $y == $currentYear ? $y . ' (YTD)' : $year,
+                'year' => $y == $currentYear ? $y.' (YTD)' : $year,
                 'trainees' => $trainees,
                 'budget' => $budgetDisbursed,
                 'foot_traffic' => $footTraffic,

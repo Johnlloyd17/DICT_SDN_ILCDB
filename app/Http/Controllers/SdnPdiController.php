@@ -62,7 +62,7 @@ class SdnPdiController extends Controller
         $selectedDistrict = $request->input('district', 'ALL');
         $tab = $request->input('tab', 'dashboard');
         $activeTab = in_array($tab, ['dashboard', 'pdi'], true) ? $tab : 'dashboard';
-        $sdnView = (bool)$request->input('sdn_view', false);
+        $sdnView = (bool) $request->input('sdn_view', false);
         $sdnQuery = Visit::with('dtcHub');
         if ($selectedMuni !== 'ALL') {
             $hubIds = DtcHub::where('municipality', $selectedMuni)->pluck('id');
@@ -83,8 +83,8 @@ class SdnPdiController extends Controller
             $s = $request->search;
             $sdnCenters->where(function ($q) use ($s) {
                 $q->where('center_name', 'like', "%{$s}%")
-                  ->orWhere('municipality_city', 'like', "%{$s}%")
-                  ->orWhere('barangay', 'like', "%{$s}%");
+                    ->orWhere('municipality_city', 'like', "%{$s}%")
+                    ->orWhere('barangay', 'like', "%{$s}%");
             });
         }
         if ($request->filled('operational') && $request->operational !== 'ALL') {
@@ -94,7 +94,7 @@ class SdnPdiController extends Controller
             $sdnCenters->where('connectivity_status', $request->connectivity);
         }
         $allowedPerPage = [5, 10, 20, 30, 40, 50, 100, 150, 200];
-        $centerPerPage = in_array((int)$request->get('per_page'), $allowedPerPage, true) ? (int)$request->get('per_page') : 10;
+        $centerPerPage = in_array((int) $request->get('per_page'), $allowedPerPage, true) ? (int) $request->get('per_page') : 10;
         $sdnCenters = $sdnCenters->orderBy('municipality_city')->orderBy('barangay')->paginate($centerPerPage, ['*'], 'center_page')->withQueryString();
         $totalCenterCount = DtcCenterInventory::count();
         $operationalCenters = DtcCenterInventory::where('operational_status', 'Operational')->count();

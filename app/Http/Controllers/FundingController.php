@@ -24,8 +24,8 @@ class FundingController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('voucher_ref', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('expense_category', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('expense_category', 'like', "%{$search}%");
             });
         }
 
@@ -113,6 +113,7 @@ class FundingController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['record' => $record], 201);
         }
+
         return redirect()->route('funding.index')->with('success', 'Funding record added successfully.');
     }
 
@@ -122,7 +123,7 @@ class FundingController extends Controller
             'project' => 'required|in:DWIA-TMD,DTC HUB,SPARK,PROJECT CLICK',
             'description' => 'required|string|max:500',
             'expense_category' => 'required|string|max:100',
-            'voucher_ref' => 'required|string|max:50|unique:funding_records,voucher_ref,' . $funding->id,
+            'voucher_ref' => 'required|string|max:50|unique:funding_records,voucher_ref,'.$funding->id,
             'allocated' => 'required|numeric|min:0',
             'obligated' => 'required|numeric|min:0',
             'disbursed' => 'required|numeric|min:0',
@@ -135,6 +136,7 @@ class FundingController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['record' => $funding->fresh()]);
         }
+
         return redirect()->route('funding.index')->with('success', 'Funding record updated.');
     }
 
@@ -145,6 +147,46 @@ class FundingController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Funding record deleted.']);
         }
+
         return redirect()->route('funding.index')->with('success', 'Funding record deleted.');
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = array_values(array_unique($request->ids));
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($ids as $id) {
+            $record = FundingRecord::find($id);
+            if (! $record) {
+                $skipped[] = ['id' => $id, 'label' => "ID {$id}", 'reason' => 'Funding record not found.'];
+
+                continue;
+            }
+
+            try {
+                $record->delete();
+                $deleted++;
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $id, 'label' => $record->voucher_ref, 'reason' => $e->getMessage()];
+            }
+        }
+
+        $message = "Successfully deleted {$deleted} funding record(s).";
+        if (! empty($skipped)) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(compact('message', 'deleted', 'skipped'));
+        }
+
+        return redirect()->route('funding.index')->with('success', $message);
     }
 }

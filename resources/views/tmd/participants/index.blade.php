@@ -113,6 +113,9 @@
                             <p class="text-[11px] text-slate-400 mt-0.5">Manage participant records, certificates, and credentials.</p>
                         </div>
                     </div>
+                    <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition inline-flex items-center justify-center gap-1.5 shadow-sm w-fit sm:w-auto">
+                        <i class="fa-solid fa-trash-can"></i> Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
                     <button x-on:click="$dispatch('open-modal', 'addParticipant')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition inline-flex items-center justify-center gap-1.5 shadow-sm w-fit sm:w-auto">
                         <i class="fa-solid fa-user-plus"></i> Add Participant
                     </button>
@@ -155,6 +158,9 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-800 text-white uppercase font-bold text-[11px] tracking-wider">
                             <tr>
+                                <th class="px-5 py-3 w-10">
+                                    <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-blue-700 focus:ring-blue-500 cursor-pointer" title="Select All On This Page">
+                                </th>
                                 <th class="px-5 py-3">Participant ID</th>
                                 <th class="px-5 py-3">Full Name</th>
                                 <th class="px-5 py-3">Batch & Course</th>
@@ -167,7 +173,10 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium text-slate-700 bg-white">
                             <template x-for="p in pagedParticipants" :key="p.id">
-                                <tr class="hover:bg-slate-50/70 transition">
+                                <tr class="hover:bg-slate-50/70 transition" :class="selectedIds.includes(p.id) ? 'bg-blue-50/60' : ''">
+                                    <td class="px-5 py-3">
+                                        <input type="checkbox" :value="p.id" x-model.number="selectedIds" class="rounded text-blue-700 focus:ring-blue-500 cursor-pointer">
+                                    </td>
                                     <td class="px-5 py-3">
                                         <span class="font-mono text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md inline-block" x-text="p.participant_code"></span>
                                     </td>
@@ -191,6 +200,7 @@
                                         <span x-show="p.completion_status !== 'Completed' && p.completion_status !== 'Ongoing'" class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-hourglass-half text-[9px]"></i>Pending</span>
                                     </td>
                                     <td class="px-5 py-3 text-center whitespace-nowrap">
+                                        <button x-on:click="$dispatch('edit-participant', { participant: p })" class="text-blue-600 hover:text-blue-800 p-1 mx-1 inline-flex align-middle" title="Edit participant"><i class="fa-solid fa-pen-to-square"></i></button>
                                         <template x-if="p.certificate_file">
                                             <span class="inline-flex gap-1">
                                                 <button x-on:click="$dispatch('open-cert', { participant: p, url: window.location.origin + '/storage/' + p.certificate_file })" class="bg-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-200 transition inline-flex items-center gap-1">
@@ -221,18 +231,14 @@
                         </div>
                     </template>
                 </div>
-                <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/40">
-                    <div class="flex flex-col lg:flex-row items-center justify-between gap-3">
-                        <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${filteredParticipants.length}`"></div>
-                        <div class="flex items-center gap-1">
-                            <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Previous"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                            <template x-for="pg in pageNumbers" :key="'pp' + pg">
-                                <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-blue-800 text-white border-blue-800' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
-                            </template>
-                            <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Next"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-                        </div>
-                    </div>
-                </div>
+                <x-data-table-footer
+                        showing="`Showing ${pageFrom}\u2013${pageTo} of ${filteredParticipants.length}`"
+                        pageExpr="setPage(pg)"
+                        activeExpr="pg === page"
+                        prevClick="setPage(page - 1)"
+                        nextClick="setPage(page + 1)"
+                        keyPrefix="pp"
+                    />
             </div>
         </div>
 
@@ -249,6 +255,9 @@
                         <i class="fa-solid fa-list-check text-blue-600"></i> TMD Batch Training Schedule
                     </h3>
                     <div class="flex items-center gap-2">
+                        <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Delete Selected (<span x-text="selectedIds.length"></span>)
+                        </button>
                         <button x-on:click="$dispatch('open-modal', 'addBatch')" class="bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
                             <i class="fa-solid fa-plus mr-1"></i>Add Batch
                         </button>
@@ -270,19 +279,26 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-100 text-slate-600 uppercase font-semibold border-b">
                             <tr>
+                                <th class="px-4 py-3 w-10">
+                                    <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-blue-700 focus:ring-blue-500 cursor-pointer" title="Select All On This Page">
+                                </th>
                                 <th class="px-4 py-3">Batch Code</th>
                                 <th class="px-4 py-3">Course Title</th>
                                 <th class="px-4 py-3">Venue / Location</th>
                                 <th class="px-4 py-3 text-center">Target</th>
                                 <th class="px-4 py-3 text-center">Enrolled</th>
                                 <th class="px-4 py-3">Trainer</th>
-                                <th class="px-4 py-3">Schedule</th>
-                                <th class="px-4 py-3">Status</th>
-                            </tr>
+<th class="px-4 py-3">Schedule</th>
+          <th class="px-4 py-3">Status</th>
+          <th class="px-4 py-3 text-center">Action</th>
+     </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 font-medium text-slate-700">
                             <template x-for="b in pagedBatches" :key="b.id">
-                                <tr class="hover:bg-slate-50 transition">
+                                <tr class="hover:bg-slate-50 transition" :class="selectedIds.includes(b.id) ? 'bg-blue-50/60' : ''">
+                                    <td class="px-4 py-3">
+                                        <input type="checkbox" :value="b.id" x-model.number="selectedIds" class="rounded text-blue-700 focus:ring-blue-500 cursor-pointer">
+                                    </td>
                                     <td class="px-4 py-3 font-mono text-[11px] font-bold text-blue-700" x-text="b.batch_code"></td>
                                     <td class="px-4 py-3 font-semibold" x-text="b.course_title"></td>
                                     <td class="px-4 py-3 text-[11px]" x-text="b.venue"></td>
@@ -293,9 +309,12 @@
                                     <td class="px-4 py-3">
                                         <span x-show="b.status === 'Completed'" class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Completed</span>
                                         <span x-show="b.status === 'Ongoing'" class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Ongoing</span>
-                                        <span x-show="b.status !== 'Completed' && b.status !== 'Ongoing'" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Upcoming</span>
-                                    </td>
-                                </tr>
+<span x-show="b.status !== 'Completed' && b.status !== 'Ongoing'" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Upcoming</span>
+     </td>
+     <td class="px-4 py-3 text-center whitespace-nowrap">
+         <button x-on:click="$dispatch('edit-batch', { batch: b })" class="text-blue-600 hover:text-blue-800 p-1 mx-1 inline-flex align-middle" title="Edit batch"><i class="fa-solid fa-pen-to-square"></i></button>
+     </td>
+ </tr>
                             </template>
                         </tbody>
                     </table>
@@ -303,24 +322,16 @@
                         <div class="text-center text-slate-400 py-12 text-xs">No batches found.</div>
                     </template>
                 </div>
-                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                        <span>Rows per page:</span>
-                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
-                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
-                                <option :value="n" x-text="n"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${filteredBatches.length}`"></div>
-                    <div class="flex items-center gap-1">
-                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                        <template x-for="pg in pageNumbers" :key="'bp' + pg">
-                            <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-blue-800 text-white border-blue-800' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
-                        </template>
-                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-                    </div>
-                </div>
+                <x-data-table-footer
+                showing="`Showing ${pageFrom}\u2013${pageTo} of ${filteredBatches.length}`"
+                pageExpr="setPage(pg)"
+                activeExpr="pg === page"
+                prevClick="setPage(page - 1)"
+                nextClick="setPage(page + 1)"
+                perPage="perPage"
+                :perPageOptions="[5, 10, 20, 30, 40, 50, 100, 150, 200]"
+                keyPrefix="bp"
+            />
             </div>
         </div>
 
@@ -370,6 +381,9 @@
                         <i class="fa-solid fa-venus-mars text-blue-700"></i> Gender-Based Municipal Penetration
                     </h3>
                     <div class="flex items-center gap-2">
+                        <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Delete Selected (<span x-text="selectedIds.length"></span>)
+                        </button>
                         <span class="text-[10px] text-slate-400 font-medium" x-text="rows.length + ' municipalities'"></span>
                         <button x-on:click="$dispatch('open-modal', 'addPenetration')" class="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
                             <i class="fa-solid fa-plus mr-1"></i>Add Penetration
@@ -380,24 +394,35 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-800 text-white uppercase font-bold text-[11px] tracking-wider">
                             <tr>
+                                <th class="px-4 py-3 w-10">
+                                    <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-purple-700 focus:ring-purple-500 cursor-pointer" title="Select All On This Page">
+                                </th>
                                 <th class="px-4 py-3">Municipality</th>
                                 <th class="px-4 py-3 text-center">Male</th>
                                 <th class="px-4 py-3 text-center">Female</th>
                                 <th class="px-4 py-3 text-center">Total</th>
+                                <th class="px-4 py-3 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
                             <template x-for="row in pagedRows" :key="row.id">
-                                <tr class="hover:bg-slate-50 transition">
+                                <tr class="hover:bg-slate-50 transition" :class="selectedIds.includes(row.id) ? 'bg-purple-50/60' : ''">
+                                    <td class="px-4 py-3">
+                                        <input type="checkbox" :value="row.id" x-model.number="selectedIds" class="rounded text-purple-700 focus:ring-purple-500 cursor-pointer">
+                                    </td>
                                     <td class="px-4 py-3 font-semibold" x-text="row.municipality"></td>
                                     <td class="px-4 py-3 text-center font-mono text-blue-700" x-text="row.male"></td>
                                     <td class="px-4 py-3 text-center font-mono text-pink-700" x-text="row.female"></td>
                                     <td class="px-4 py-3 text-center font-mono font-bold text-slate-800" x-text="row.total"></td>
+                                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                                        <button x-on:click="$dispatch('edit-penetration', { record: row })" class="text-purple-700 hover:text-purple-900 p-1 mx-1 inline-flex align-middle" title="Edit record"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    </td>
                                 </tr>
                             </template>
                         </tbody>
                         <tfoot class="bg-slate-100 font-bold text-slate-800 text-xs">
                             <tr>
+                                <td class="px-4 py-3"></td>
                                 <td class="px-4 py-3 uppercase tracking-wider">Grand Total</td>
                                 <td class="px-4 py-3 text-center font-mono text-blue-700" x-text="grandMale"></td>
                                 <td class="px-4 py-3 text-center font-mono text-pink-700" x-text="grandFemale"></td>
@@ -409,24 +434,16 @@
                         <div class="text-center text-slate-400 py-12 text-xs">No penetration data available.</div>
                     </template>
                 </div>
-                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                        <span>Rows per page:</span>
-                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500">
-                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
-                                <option :value="n" x-text="n"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${rows.length}`"></div>
-                    <div class="flex items-center gap-1">
-                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                        <template x-for="pg in pageNumbers" :key="'pen' + pg">
-                            <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-blue-800 text-white border-blue-800' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
-                        </template>
-                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-                    </div>
-                </div>
+                <x-data-table-footer
+                    showing="`Showing ${pageFrom}\u2013${pageTo} of ${rows.length}`"
+                    pageExpr="setPage(pg)"
+                    activeExpr="pg === page"
+                    prevClick="setPage(page - 1)"
+                    nextClick="setPage(page + 1)"
+                    perPage="perPage"
+                    :perPageOptions="[5, 10, 20, 30, 40, 50, 100, 150, 200]"
+                    keyPrefix="pen"
+                />
             </div>
         </div>
 
@@ -473,6 +490,9 @@
                         Offered Courses Registry
                     </h3>
                     <div class="flex items-center gap-2">
+                        <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-semibold transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Delete Selected (<span x-text="selectedIds.length"></span>)
+                        </button>
                         <div class="relative">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                             <input type="text" x-model="search" placeholder="Search courses..." class="w-52 pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500">
@@ -489,6 +509,9 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-100/50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
                             <tr>
+                                <th class="px-5 py-3 w-10">
+                                    <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-indigo-700 focus:ring-indigo-500 cursor-pointer" title="Select All On This Page">
+                                </th>
                                 <th class="px-5 py-3">Course Code</th>
                                 <th class="px-5 py-3">Syllabus Title & Curriculum Details</th>
                                 <th class="px-5 py-3">Specialty Track</th>
@@ -502,7 +525,10 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
                             <template x-for="c in pagedCourses" :key="c.id">
-                                <tr class="hover:bg-slate-50/50 transition">
+                                <tr class="hover:bg-slate-50/50 transition" :class="selectedIds.includes(c.id) ? 'bg-indigo-50/60' : ''">
+                                    <td class="px-5 py-3">
+                                        <input type="checkbox" :value="c.id" x-model.number="selectedIds" class="rounded text-indigo-700 focus:ring-indigo-500 cursor-pointer">
+                                    </td>
                                     <td class="px-5 py-3 font-mono text-[11px] font-bold text-indigo-700" x-text="c.course_code"></td>
                                     <td class="px-5 py-3 font-semibold" x-text="c.title"></td>
                                     <td class="px-5 py-3"><span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold" x-text="c.specialty_track"></span></td>
@@ -530,24 +556,16 @@
                         <div class="text-center text-slate-400 py-12 text-xs">No courses found.</div>
                     </template>
                 </div>
-                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                        <span>Rows per page:</span>
-                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500">
-                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
-                                <option :value="n" x-text="n"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}\u2013${pageTo} of ${filteredCourses.length}`"></div>
-                    <div class="flex items-center gap-1">
-                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                        <template x-for="pg in pageNumbers" :key="'cp' + pg">
-                            <button x-on:click="setPage(pg)" :class="page === pg ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border"><span x-text="pg"></span></button>
-                        </template>
-                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-                    </div>
-                </div>
+                <x-data-table-footer
+                    showing="`Showing ${pageFrom}\u2013${pageTo} of ${filteredCourses.length}`"
+                    pageExpr="setPage(pg)"
+                    activeExpr="pg === page"
+                    prevClick="setPage(page - 1)"
+                    nextClick="setPage(page + 1)"
+                    perPage="perPage"
+                    :perPageOptions="[5, 10, 20, 30, 40, 50, 100, 150, 200]"
+                    keyPrefix="cp"
+                />
             </div>
         </div>
         {{-- ==================== TRAINER PROFILE SUB-TAB (BACKEND CRUD) ==================== --}}
@@ -613,6 +631,9 @@
                         <p class="text-[11px] text-slate-400 mt-1">Manage accredited resource speakers — saved to the database.</p>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap">
+                        <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Delete Selected (<span x-text="selectedIds.length"></span>)
+                        </button>
                         <div class="relative">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                             <input type="text" x-model="search" placeholder="Search trainer..." class="w-52 pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500">
@@ -637,6 +658,9 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-100/50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
                             <tr>
+                                <th class="px-5 py-3 w-10">
+                                    <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-emerald-700 focus:ring-emerald-500 cursor-pointer" title="Select All On This Page">
+                                </th>
                                 <th class="px-5 py-3">Trainer</th>
                                 <th class="px-5 py-3">Specialty Track</th>
                                 <th class="px-5 py-3">Agency / Affiliation</th>
@@ -649,7 +673,10 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
                             <template x-for="(t, i) in pagedTrainers" :key="t.id">
-                                <tr class="hover:bg-slate-50/50 transition">
+                                <tr class="hover:bg-slate-50/50 transition" :class="selectedIds.includes(t.id) ? 'bg-emerald-50/60' : ''">
+                                    <td class="px-5 py-3">
+                                        <input type="checkbox" :value="t.id" x-model.number="selectedIds" class="rounded text-emerald-700 focus:ring-emerald-500 cursor-pointer">
+                                    </td>
                                     <td class="px-5 py-3">
                                         <div class="flex items-center gap-3">
                                             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-900 to-indigo-700 text-white flex items-center justify-center font-black text-xs shadow shrink-0" x-text="initialsOf(t.name)"></div>
@@ -685,30 +712,16 @@
                     </div>
                 </div>
 
-                <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
-                    <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                        <span>Rows per page:</span>
-                        <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-emerald-500">
-                            <template x-for="n in [5, 10, 20, 30, 40, 50, 100, 150, 200]" :key="n">
-                                <option :value="n" x-text="n"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}–${pageTo} of ${filteredTrainers.length}`"></div>
-                    <div class="flex items-center gap-1">
-                        <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Previous">
-                            <i class="fa-solid fa-chevron-left text-[9px]"></i>
-                        </button>
-                        <template x-for="p in pageNumbers" :key="'p' + p">
-                            <button x-on:click="setPage(p)" :class="page === p ? 'bg-emerald-600 text-white border-emerald-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border">
-                                <span x-text="p"></span>
-                            </button>
-                        </template>
-                        <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Next">
-                            <i class="fa-solid fa-chevron-right text-[9px]"></i>
-                        </button>
-                    </div>
-                </div>
+                <x-data-table-footer
+                    showing="`Showing ${pageFrom}–${pageTo} of ${filteredTrainers.length}`"
+                    pageExpr="setPage(pg)"
+                    activeExpr="pg === page"
+                    prevClick="setPage(page - 1)"
+                    nextClick="setPage(page + 1)"
+                    perPage="perPage"
+                    :perPageOptions="[5, 10, 20, 30, 40, 50, 100, 150, 200]"
+                    keyPrefix="p"
+                />
             </div>
 
             {{-- ADD / EDIT TRAINER MODAL --}}
@@ -811,8 +824,16 @@
     {{-- ==================== ADD PARTICIPANT MODAL (AJAX) ==================== --}}
     <div x-data="{
         show: false, saving: false,
+        selectedBatchId: '',
+        batches: {{ json_encode($batchOptions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
+        get selectedBatch() { return this.batches.find(b => String(b.id) === String(this.selectedBatchId)) || null; },
         async addParticipant(form) {
             if (this.saving) return; this.saving = true;
+            if (this.batches.length === 0) {
+                alert('No training batches available — add one under Batch Tracker Schedule first.');
+                this.saving = false;
+                return;
+            }
             try {
                 const fd = new FormData(form);
                 const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
@@ -842,12 +863,18 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block font-semibold text-slate-700 mb-1">Training Batch</label>
-                        <select name="training_batch_id" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                            @foreach($batches as $batch)
-                            <option value="{{ $batch->id }}">{{ $batch->batch_code }}</option>
-                            @endforeach
+                        <label class="block font-semibold text-slate-700 mb-1">Training Batch <span class="text-red-500">*</span></label>
+                        <select name="training_batch_id" x-model="selectedBatchId" :required="batches.length > 0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="" selected disabled x-show="batches.length > 0">Select a batch…</option>
+                            <template x-for="b in batches" :key="b.id">
+                                <option :value="String(b.id)" x-text="b.label"></option>
+                            </template>
+                            <option value="" disabled x-show="batches.length === 0">No training batches available — add one under Batch Tracker Schedule first.</option>
                         </select>
+                        <p x-show="selectedBatch && batches.length > 0" class="mt-1.5 text-[10px] text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-dot text-slate-300"></i>
+                            <span>Venue: <span class="font-semibold text-slate-500" x-text="selectedBatch.venue"></span></span>
+                        </p>
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-700 mb-1">Municipality <span class="text-red-500">*</span></label>
@@ -876,6 +903,98 @@
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
                 <button type="submit" form="addParticipantForm" :disabled="saving" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Register Participant</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ==================== EDIT PARTICIPANT MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false, id: null,
+        batches: {{ json_encode($editBatchOptions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT, 512) }},
+        form: { full_name: '', training_batch_id: '', municipality: '', agency_sector: '', completion_status: 'Ongoing', completion_date: '' },
+        get selectedBatch() { return this.batches.find(b => String(b.id) === String(this.form.training_batch_id)) || null; },
+        open(p) {
+            this.id = p.id;
+            this.form.full_name = p.full_name || '';
+            this.form.training_batch_id = p.training_batch_id ? String(p.training_batch_id) : '';
+            this.form.municipality = p.municipality || '';
+            this.form.agency_sector = p.agency_sector || '';
+            this.form.completion_status = p.completion_status || 'Ongoing';
+            this.form.completion_date = p.completion_date ? String(p.completion_date).slice(0, 10) : '';
+            this.saving = false;
+            this.show = true;
+        },
+        async updateParticipant(formEl) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(formEl);
+                fd.append('_method', 'PUT');
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.participants.update', ['participant' => '__ID__']) }}'.replace('__ID__', this.id), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to update participant.');
+                window.dispatchEvent(new CustomEvent('participant-updated', { detail: data.participant }));
+                this.show = false;
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:edit-participant.window="open($event.detail.participant)" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="bg-dict-blue text-white px-6 py-4 flex items-center justify-between shrink-0">
+                <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-user-pen text-amber-400"></i> Edit Participant</h3>
+                <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="editParticipantForm" x-on:submit.prevent="updateParticipant($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                @csrf
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="full_name" required x-model="form.full_name" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Training Batch <span class="text-red-500">*</span></label>
+                        <select name="training_batch_id" x-model="form.training_batch_id" :required="batches.length > 0" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="" disabled x-show="batches.length > 0">Select a batch…</option>
+                            <template x-for="b in batches" :key="b.id">
+                                <option :value="String(b.id)" x-text="b.label"></option>
+                            </template>
+                            <option value="" disabled x-show="batches.length === 0">No training batches available — add one under Batch Tracker Schedule first.</option>
+                        </select>
+                        <p x-show="selectedBatch && batches.length > 0" class="mt-1.5 text-[10px] text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-dot text-slate-300"></i>
+                            <span>Venue: <span class="font-semibold text-slate-500" x-text="selectedBatch.venue"></span></span>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Municipality <span class="text-red-500">*</span></label>
+                        <input type="text" name="municipality" required x-model="form.municipality" placeholder="e.g. Surigao City" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Agency / Sector <span class="text-red-500">*</span></label>
+                        <input type="text" name="agency_sector" required x-model="form.agency_sector" placeholder="e.g. LGU Surigao City" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Completion Status</label>
+                        <select name="completion_status" x-model="form.completion_status" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="Ongoing">In Progress / Enrolled</option>
+                            <option value="Completed">Completed / Certified</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Completion Date</label>
+                    <input type="date" name="completion_date" x-model="form.completion_date" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+            </form>
+            <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
+                <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
+                <button type="submit" form="editParticipantForm" :disabled="saving" class="bg-blue-800 hover:bg-blue-700 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Update Participant</button>
             </div>
         </div>
     </div>
@@ -1096,6 +1215,97 @@
         </div>
     </div>
 
+    {{-- ==================== EDIT BATCH MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false, id: null,
+        form: { course_title: '', venue: '', target_count: 0, enrolled_count: 0, trainer_name: '', start_date: '', end_date: '', status: 'Upcoming', batch_code: '' },
+        open(b) {
+            this.id = b.id;
+            this.form.batch_code = b.batch_code || '';
+            this.form.course_title = b.course_title || '';
+            this.form.venue = b.venue || '';
+            this.form.target_count = b.target_count || 0;
+            this.form.enrolled_count = b.enrolled_count || 0;
+            this.form.trainer_name = b.trainer_name || '';
+            this.form.start_date = b.start_date ? String(b.start_date).slice(0, 10) : '';
+            this.form.end_date = b.end_date ? String(b.end_date).slice(0, 10) : '';
+            this.form.status = b.status || 'Upcoming';
+            this.saving = false;
+            this.show = true;
+        },
+        async updateBatch(formEl) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(formEl);
+                fd.append('_method', 'PUT');
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.batches.update', ['batch' => '__ID__']) }}'.replace('__ID__', this.id), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to update batch.');
+                window.dispatchEvent(new CustomEvent('batch-updated', { detail: data.batch }));
+                this.show = false;
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:edit-batch.window="open($event.detail.batch)" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="bg-blue-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+                <h3 class="font-bold flex items-center gap-2 min-w-0"><i class="fa-solid fa-pen-to-square text-amber-400"></i> Edit Training Batch <span class="font-mono text-[10px] bg-white/15 px-2 py-0.5 rounded truncate" x-text="form.batch_code || ''"></span></h3>
+                <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="editBatchForm" x-on:submit.prevent="updateBatch($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                @csrf
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Course Title <span class="text-red-500">*</span></label>
+                    <input type="text" name="course_title" required x-model="form.course_title" placeholder="e.g. Cybersecurity Fundamentals" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Venue / Location <span class="text-red-500">*</span></label>
+                    <input type="text" name="venue" required x-model="form.venue" placeholder="e.g. DICT SDN Regional Office" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Target Count <span class="text-red-500">*</span></label>
+                        <input type="number" name="target_count" required min="0" x-model.number="form.target_count" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Enrolled Count <span class="text-red-500">*</span></label>
+                        <input type="number" name="enrolled_count" required min="0" x-model.number="form.enrolled_count" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Trainer / Resource Speaker <span class="text-red-500">*</span></label>
+                    <input type="text" name="trainer_name" required x-model="form.trainer_name" placeholder="e.g. Maria S. Santos" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Start Date <span class="text-red-500">*</span></label>
+                        <input type="date" name="start_date" required x-model="form.start_date" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">End Date <span class="text-red-500">*</span></label>
+                        <input type="date" name="end_date" required x-model="form.end_date" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Status</label>
+                    <select name="status" x-model="form.status" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="Upcoming">Upcoming</option>
+                        <option value="Ongoing">Ongoing</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+            </form>
+            <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
+                <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
+                <button type="submit" form="editBatchForm" :disabled="saving" class="bg-blue-800 hover:bg-blue-700 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Update Batch</button>
+            </div>
+        </div>
+    </div>
+
     {{-- ==================== ADD PENETRATION MODAL (AJAX) ==================== --}}
     <div x-data="{
         show: false, saving: false,
@@ -1145,6 +1355,68 @@
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
                 <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
                 <button type="submit" form="addPenetrationForm" :disabled="saving" class="bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Save Penetration</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ==================== EDIT PENETRATION MODAL (AJAX) ==================== --}}
+    <div x-data="{
+        show: false, saving: false, id: null,
+        form: { municipality: '', male: 0, female: 0 },
+        open(r) {
+            this.id = r.id;
+            this.form.municipality = r.municipality || '';
+            this.form.male = r.male || 0;
+            this.form.female = r.female || 0;
+            this.saving = false;
+            this.show = true;
+        },
+        async updatePenetration(formEl) {
+            if (this.saving) return; this.saving = true;
+            try {
+                const fd = new FormData(formEl);
+                fd.append('_method', 'PUT');
+                const csrf = document.querySelector('meta[name=csrf-token]')?.content || '';
+                const res = await fetch('{{ route('tmd.penetration.update', ['penetration' => '__ID__']) }}'.replace('__ID__', this.id), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Failed to update penetration record.');
+                window.dispatchEvent(new CustomEvent('penetration-updated', { detail: data.record }));
+                this.show = false;
+            } catch(e) { alert(e.message); } finally { this.saving = false; }
+        }
+    }" x-on:edit-penetration.window="open($event.detail.record)" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="bg-purple-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+                <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-amber-400"></i> Edit Municipal Penetration</h3>
+                <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="editPenetrationForm" x-on:submit.prevent="updatePenetration($el)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                @csrf
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Municipality <span class="text-red-500">*</span></label>
+                    <input type="text" name="municipality" required x-model="form.municipality" placeholder="e.g. Surigao City" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Male Trainees <span class="text-red-500">*</span></label>
+                        <input type="number" name="male" required min="0" x-model.number="form.male" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Female Trainees <span class="text-red-500">*</span></label>
+                        <input type="number" name="female" required min="0" x-model.number="form.female" class="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-xl border border-purple-100 text-[11px] text-purple-700">
+                    <i class="fa-solid fa-info-circle mr-1"></i> The Total column is computed automatically as Male + Female.
+                </div>
+            </form>
+            <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-end gap-3 shrink-0">
+                <button type="button" x-on:click="show = false" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
+                <button type="submit" form="editPenetrationForm" :disabled="saving" class="bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50"><i class="fa-solid fa-check mr-1" :class="saving && 'fa-spinner fa-spin'"></i> Update Penetration</button>
             </div>
         </div>
     </div>
@@ -1233,21 +1505,23 @@
     <script>
     window._fmtDate = function(d) {
         if (!d) return '-';
-        try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(e) { return d; }
+        try { const s = String(d).slice(0, 10); return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(e) { return d; }
     };
     window._fmtDateShort = function(d) {
         if (!d) return '-';
-        try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch(e) { return d; }
+        try { const s = String(d).slice(0, 10); return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); } catch(e) { return d; }
     };
 
     window.participantsCrud = function(seed) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const destroyCertUrl = '{{ route("tmd.participants.certificate.delete", ["participant" => "__ID__"]) }}';
+        const batchDeleteUrl = '{{ route("tmd.participants.batchDelete") }}';
         return {
             participants: seed,
             search: '', batchFilter: '', certFilter: '',
             saving: false, notice: '', noticeType: 'success',
             page: 1, perPage: 5,
+            selectedIds: [],
             get filteredParticipants() {
                 const q = this.search.trim().toLowerCase();
                 return this.participants.filter(p => {
@@ -1283,20 +1557,71 @@
                 const s = (this.page - 1) * this.perPage;
                 return this.filteredParticipants.slice(s, s + this.perPage);
             },
+            get allPageSelected() {
+                const pageIds = this.pagedParticipants.map(p => p.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
+            toggleSelectAll() {
+                const pageIds = this.pagedParticipants.map(p => p.id);
+                const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOnPage) {
+                    this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                }
+            },
             setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
             fmtDate(d) { return window._fmtDate(d); },
             flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
             init() {
-                ['search','batchFilter','certFilter'].forEach(k => this.$watch(k, () => this.page = 1));
+                ['search','batchFilter','certFilter'].forEach(k => this.$watch(k, () => { this.page = 1; this.selectedIds = []; }));
                 window.addEventListener('participant-added', (e) => {
                     this.participants.unshift(e.detail);
                     this.flash('Participant registered successfully.');
+                });
+                window.addEventListener('participant-updated', (e) => {
+                    const idx = this.participants.findIndex(p => p.id === e.detail.id);
+                    if (idx > -1) this.participants[idx] = e.detail;
+                    this.flash('Participant updated successfully.');
                 });
                 window.addEventListener('certificate-updated', (e) => {
                     const idx = this.participants.findIndex(p => p.id === e.detail.id);
                     if (idx > -1) this.participants[idx] = { ...this.participants[idx], ...e.detail };
                     this.flash('Certificate uploaded successfully.');
                 });
+            },
+            async batchDelete() {
+                const ids = [...this.selectedIds];
+                if (!ids.length) return;
+                const labels = this.filteredParticipants.filter(p => ids.includes(p.id)).map(p => p.full_name);
+                window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                    detail: {
+                        title: 'Delete Participants',
+                        count: ids.length,
+                        labels,
+                        onConfirm: async () => {
+                            if (this.saving) return;
+                            this.saving = true;
+                            try {
+                                const res = await fetch(batchDeleteUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.message || 'Delete failed. Please try again.');
+                                const skippedIds = (data.skipped || []).map(s => s.id);
+                                this.participants = this.participants.filter(p => !ids.includes(p.id) || skippedIds.includes(p.id));
+                                this.selectedIds = [];
+                                this.flash(data.message || 'Selected participants deleted.', (data.skipped || []).length ? 'error' : 'success');
+                            } catch (e) {
+                                this.flash(e.message, 'error');
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    },
+                }));
             },
             async deleteCert(p) {
                 if (!confirm('Remove this certificate?')) return;
@@ -1315,11 +1640,13 @@
 
     window.batchesCrud = function(seed) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const batchDeleteUrl = '{{ route("tmd.batches.batchDelete") }}';
         return {
             batches: seed,
             page: 1, perPage: 10,
             search: '',
             notice: '', noticeType: 'success',
+            selectedIds: [],
             get filteredBatches() {
                 const q = this.search.trim().toLowerCase();
                 return this.batches.filter(b => !q || [b.batch_code, b.course_title, b.venue, b.trainer_name].join(' ').toLowerCase().includes(q));
@@ -1337,16 +1664,68 @@
                 const s = (this.page - 1) * this.perPage;
                 return this.filteredBatches.slice(s, s + this.perPage);
             },
+            get allPageSelected() {
+                const pageIds = this.pagedBatches.map(b => b.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
+            toggleSelectAll() {
+                const pageIds = this.pagedBatches.map(b => b.id);
+                const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOnPage) {
+                    this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                }
+            },
             setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
             fmtDate(d) { return window._fmtDate(d); },
             fmtDateShort(d) { return window._fmtDateShort(d); },
             flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
             init() {
-                this.$watch('search', () => this.page = 1);
+                this.$watch('search', () => { this.page = 1; this.selectedIds = []; });
                 window.addEventListener('batch-added', (e) => {
                     this.batches.unshift(e.detail);
                     this.flash('Training batch added successfully.');
                 });
+                window.addEventListener('batch-updated', (e) => {
+                    const idx = this.batches.findIndex(b => b.id === e.detail.id);
+                    if (idx > -1) this.batches[idx] = e.detail;
+                    this.flash('Training batch updated successfully.');
+                });
+            },
+            async batchDelete() {
+                const ids = [...this.selectedIds];
+                if (!ids.length) return;
+                const labels = this.filteredBatches.filter(b => ids.includes(b.id)).map(b => b.batch_code);
+                window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                    detail: {
+                        title: 'Delete Training Batches',
+                        count: ids.length,
+                        labels,
+                        warning: 'WARNING: Deleting a batch will also permanently delete all enrolled participants and their certificates.',
+                        onConfirm: async () => {
+                            if (this.saving) return;
+                            this.saving = true;
+                            try {
+                                const res = await fetch(batchDeleteUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.message || 'Delete failed. Please try again.');
+                                const skippedIds = (data.skipped || []).map(s => s.id);
+                                this.batches = this.batches.filter(b => !ids.includes(b.id) || skippedIds.includes(b.id));
+                                this.selectedIds = [];
+                                this.flash(data.message || 'Selected batches deleted.', (data.skipped || []).length ? 'error' : 'success');
+                            } catch (e) {
+                                this.flash(e.message, 'error');
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    },
+                }));
             },
         };
     };
@@ -1357,6 +1736,7 @@
             rows: seed,
             page: 1, perPage: 10,
             notice: '', noticeType: 'success',
+            selectedIds: [],
             get grandMale() { return this.rows.reduce((s, r) => s + (r.male || 0), 0); },
             get grandFemale() { return this.rows.reduce((s, r) => s + (r.female || 0), 0); },
             get grandTotal() { return this.rows.reduce((s, r) => s + (r.total || 0), 0); },
@@ -1375,10 +1755,75 @@
             },
             setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
             flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
+            get allPageSelected() {
+                const pageIds = this.pagedRows.map(r => r.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
+            toggleSelectAll() {
+                const pageIds = this.pagedRows.map(r => r.id);
+                const allOn = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOn) {
+                    pageIds.forEach(id => { this.selectedIds = this.selectedIds.filter(s => s !== id); });
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                }
+            },
+            async batchDelete() {
+                if (!this.selectedIds.length) return;
+                try {
+                    const res = await fetch('{{ route("tmd.penetration.previewDelete") }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                        body: JSON.stringify({ ids: this.selectedIds })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.message || 'Could not load deletion preview.');
+                    const preview = data.preview || [];
+                    const count = preview.length;
+                    const totalParticipants = preview.reduce((s, p) => s + (p.participants || 0), 0);
+                    const lines = preview.map(p => `${p.municipality} — ${p.participants} participant record(s)`);
+                    window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                        detail: {
+                            title: 'Delete Municipality Penetration Records',
+                            count: count,
+                            description: `Permanently delete ${count} summary row(s) and the underlying participant records listed below. This cannot be undone.`,
+                            previewLines: lines,
+                            warning: `WARNING: ${totalParticipants} participant record(s) in the listed municipalities will also be permanently deleted, including their certificate files.`,
+                            onConfirm: () => this.doBatchDelete()
+                        }
+                    }));
+                } catch (err) {
+                    this.flash(err.message || 'Preview failed.', 'error');
+                }
+            },
+            async doBatchDelete() {
+                try {
+                    const res = await fetch('{{ route("tmd.penetration.batchDelete") }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                        body: JSON.stringify({ ids: this.selectedIds })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.message || 'Bulk delete failed.');
+                    const deletedIds = (data.deleted || []).map(d => d.id);
+                    const skippedIds = (data.skipped || []).map(s => s.id);
+                    this.rows = this.rows.filter(r => !deletedIds.includes(r.id) || skippedIds.includes(r.id));
+                    this.selectedIds = [];
+                    if (this.page > this.totalPages) this.page = this.totalPages;
+                    this.flash(data.message || 'Records deleted.', (data.skipped && data.skipped.length) ? 'error' : 'success');
+                } catch (err) {
+                    this.flash(err.message || 'Bulk delete failed.', 'error');
+                }
+            },
             init() {
                 window.addEventListener('penetration-added', (e) => {
                     this.rows.push(e.detail);
                     this.flash('Penetration record added successfully.');
+                });
+                window.addEventListener('penetration-updated', (e) => {
+                    const idx = this.rows.findIndex(r => r.id === e.detail.id);
+                    if (idx > -1) this.rows[idx] = e.detail;
+                    this.flash('Penetration record updated successfully.');
                 });
             },
         };
@@ -1387,11 +1832,13 @@
     window.coursesCrud = function(seed) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const destroyUrl = '{{ url("tmd/courses") }}/__ID__';
+        const batchDeleteUrl = '{{ route("tmd.courses.batchDelete") }}';
         return {
             courses: seed,
             page: 1, perPage: 10,
             search: '',
             notice: '', noticeType: 'success',
+            selectedIds: [],
             get filteredCourses() {
                 const q = this.search.trim().toLowerCase();
                 return this.courses.filter(c => !q || [c.course_code, c.title, c.specialty_track, c.format_type].join(' ').toLowerCase().includes(q));
@@ -1409,10 +1856,23 @@
                 const s = (this.page - 1) * this.perPage;
                 return this.filteredCourses.slice(s, s + this.perPage);
             },
+            get allPageSelected() {
+                const pageIds = this.pagedCourses.map(c => c.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
+            toggleSelectAll() {
+                const pageIds = this.pagedCourses.map(c => c.id);
+                const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOnPage) {
+                    this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                }
+            },
             setPage(p) { if (p >= 1 && p <= this.totalPages) this.page = p; },
             flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
             init() {
-                this.$watch('search', () => this.page = 1);
+                this.$watch('search', () => { this.page = 1; this.selectedIds = []; });
                 window.addEventListener('course-added', (e) => {
                     this.courses.push(e.detail);
                     this.flash('Course added successfully.');
@@ -1422,6 +1882,39 @@
                     if (idx > -1) this.courses[idx] = e.detail;
                     this.flash('Course updated successfully.');
                 });
+            },
+            async batchDelete() {
+                const ids = [...this.selectedIds];
+                if (!ids.length) return;
+                const labels = this.filteredCourses.filter(c => ids.includes(c.id)).map(c => c.course_code + ' — ' + c.title);
+                window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                    detail: {
+                        title: 'Delete Courses',
+                        count: ids.length,
+                        labels,
+                        onConfirm: async () => {
+                            if (this.saving) return;
+                            this.saving = true;
+                            try {
+                                const res = await fetch(batchDeleteUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.message || 'Delete failed. Please try again.');
+                                const skippedIds = (data.skipped || []).map(s => s.id);
+                                this.courses = this.courses.filter(c => !ids.includes(c.id) || skippedIds.includes(c.id));
+                                this.selectedIds = [];
+                                this.flash(data.message || 'Selected courses deleted.', (data.skipped || []).length ? 'error' : 'success');
+                            } catch (e) {
+                                this.flash(e.message, 'error');
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    },
+                }));
             },
             async deleteCourse(c) {
                 if (!confirm('Delete this course?')) return;
@@ -1444,6 +1937,7 @@
         const storeUrl = '{{ route('tmd.trainers.store') }}';
         const updateUrl = '{{ route('tmd.trainers.update', ['trainer' => '__ID__']) }}';
         const destroyUrl = '{{ route('tmd.trainers.destroy', ['trainer' => '__ID__']) }}';
+        const batchDeleteUrl = '{{ route("tmd.trainers.batchDelete") }}';
         return {
             trainers: seed,
             search: '',
@@ -1459,6 +1953,7 @@
             noticeType: 'success',
             page: 1,
             perPage: 5,
+            selectedIds: [],
             form: { name: '', designation: '', specialty: '', agency: '', contact: '', phone: '', status: 'Active', courses: 0, rating: 0 },
 
             get filteredTrainers() {
@@ -1510,11 +2005,24 @@
                 const start = (this.page - 1) * this.perPage;
                 return this.filteredTrainers.slice(start, start + this.perPage);
             },
+            get allPageSelected() {
+                const pageIds = this.pagedTrainers.map(t => t.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
+            toggleSelectAll() {
+                const pageIds = this.pagedTrainers.map(t => t.id);
+                const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOnPage) {
+                    this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                }
+            },
             setPage(p) {
                 if (p >= 1 && p <= this.totalPages) this.page = p;
             },
             init() {
-                ['search', 'specialtyFilter', 'statusFilter'].forEach(k => this.$watch(k, () => this.page = 1));
+                ['search', 'specialtyFilter', 'statusFilter'].forEach(k => this.$watch(k, () => { this.page = 1; this.selectedIds = []; }));
             },
 
             initialsOf(name) {
@@ -1587,6 +2095,7 @@
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.message || 'Delete failed. Please try again.');
                     this.trainers = this.trainers.filter(t => t.id !== this.deleteTarget.id);
+                    this.selectedIds = this.selectedIds.filter(id => id !== this.deleteTarget.id);
                     this.showDelete = false;
                     this.deleteTarget = null;
                     this.flash('Trainer deleted successfully.');
@@ -1595,6 +2104,39 @@
                 } finally {
                     this.saving = false;
                 }
+            },
+            async batchDelete() {
+                const ids = [...this.selectedIds];
+                if (!ids.length) return;
+                const labels = this.filteredTrainers.filter(t => ids.includes(t.id)).map(t => t.name);
+                window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                    detail: {
+                        title: 'Delete Trainers',
+                        count: ids.length,
+                        labels,
+                        onConfirm: async () => {
+                            if (this.saving) return;
+                            this.saving = true;
+                            try {
+                                const res = await fetch(batchDeleteUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.message || 'Delete failed. Please try again.');
+                                const skippedIds = (data.skipped || []).map(s => s.id);
+                                this.trainers = this.trainers.filter(t => !ids.includes(t.id) || skippedIds.includes(t.id));
+                                this.selectedIds = [];
+                                this.flash(data.message || 'Selected trainers deleted.', (data.skipped || []).length ? 'error' : 'success');
+                            } catch (e) {
+                                this.flash(e.message, 'error');
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    },
+                }));
             },
         };
     };

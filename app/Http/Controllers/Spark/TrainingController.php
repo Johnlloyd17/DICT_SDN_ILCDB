@@ -20,9 +20,9 @@ class TrainingController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('track_id', 'like', "%{$search}%")
-                  ->orWhere('specialization', 'like', "%{$search}%")
-                  ->orWhere('master_trainer', 'like', "%{$search}%")
-                  ->orWhere('industry_partner', 'like', "%{$search}%");
+                    ->orWhere('specialization', 'like', "%{$search}%")
+                    ->orWhere('master_trainer', 'like', "%{$search}%")
+                    ->orWhere('industry_partner', 'like', "%{$search}%");
             });
         }
 
@@ -60,6 +60,7 @@ class TrainingController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['training' => $training], 201);
         }
+
         return redirect()->route('spark.trainings.index')->with('success', 'SPARK training added successfully.');
     }
 
@@ -82,6 +83,7 @@ class TrainingController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['training' => $training->fresh()]);
         }
+
         return redirect()->route('spark.trainings.index')->with('success', 'Training updated.');
     }
 
@@ -92,6 +94,46 @@ class TrainingController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Training removed.']);
         }
+
         return redirect()->route('spark.trainings.index')->with('success', 'Training removed.');
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = array_values(array_unique($request->ids));
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($ids as $id) {
+            $training = SparkTraining::find($id);
+            if (! $training) {
+                $skipped[] = ['id' => $id, 'label' => "ID {$id}", 'reason' => 'Training not found.'];
+
+                continue;
+            }
+
+            try {
+                $training->delete();
+                $deleted++;
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $id, 'label' => $training->track_id, 'reason' => $e->getMessage()];
+            }
+        }
+
+        $message = "Successfully deleted {$deleted} training(s).";
+        if (! empty($skipped)) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(compact('message', 'deleted', 'skipped'));
+        }
+
+        return redirect()->route('spark.trainings.index')->with('success', $message);
     }
 }

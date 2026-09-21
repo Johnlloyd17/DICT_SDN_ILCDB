@@ -24,9 +24,9 @@ class TraineeController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('trainee_code', 'like', "%{$search}%")
-                  ->orWhere('specialty', 'like', "%{$search}%")
-                  ->orWhere('course', 'like', "%{$search}%");
+                    ->orWhere('trainee_code', 'like', "%{$search}%")
+                    ->orWhere('specialty', 'like', "%{$search}%")
+                    ->orWhere('course', 'like', "%{$search}%");
             });
         }
 
@@ -59,7 +59,7 @@ class TraineeController extends Controller
         ]);
 
         $lastId = SparkTrainee::max('id') ?? 0;
-        $code = 'SPK-' . date('Y') . '-' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
+        $code = 'SPK-'.date('Y').'-'.str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
 
         $trainee = SparkTrainee::create([
             'trainee_code' => $code,
@@ -74,6 +74,7 @@ class TraineeController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['trainee' => $trainee], 201);
         }
+
         return redirect()->route('spark.trainees.index')->with('success', 'Trainee added successfully.');
     }
 
@@ -96,6 +97,7 @@ class TraineeController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['trainee' => $trainee->fresh()]);
         }
+
         return redirect()->route('spark.trainees.index')->with('success', 'Trainee updated.');
     }
 
@@ -106,6 +108,7 @@ class TraineeController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Trainee removed.']);
         }
+
         return redirect()->route('spark.trainees.index')->with('success', 'Trainee removed.');
     }
 }

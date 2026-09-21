@@ -21,7 +21,7 @@ class VisitorController extends Controller
 
         $tab = $request->input('tab', 'dashboard');
         $activeTab = in_array($tab, ['dashboard', 'pdi'], true) ? $tab : 'dashboard';
-        $sdnView = (bool)$request->input('sdn_view', false);
+        $sdnView = (bool) $request->input('sdn_view', false);
 
         $hubs = DtcHub::where('status', 'Active')->orderBy('name')->get();
         $services = DtcService::where('is_active', true)
@@ -50,11 +50,11 @@ class VisitorController extends Controller
             $s = $request->v_search;
             $visitorQuery->where(function ($q) use ($s) {
                 $q->where('visits.visit_code', 'like', "%{$s}%")
-                  ->orWhere('visits.status', 'like', "%{$s}%")
-                  ->orWhereHas('visitor', function ($v) use ($s) {
-                      $v->where('name', 'like', "%{$s}%")
-                        ->orWhere('demographic_sector', 'like', "%{$s}%");
-                  });
+                    ->orWhere('visits.status', 'like', "%{$s}%")
+                    ->orWhereHas('visitor', function ($v) use ($s) {
+                        $v->where('name', 'like', "%{$s}%")
+                            ->orWhere('demographic_sector', 'like', "%{$s}%");
+                    });
             });
         }
 
@@ -77,7 +77,7 @@ class VisitorController extends Controller
         $firstVisit = Visit::min('check_in_time');
         $lastVisit = Visit::max('check_in_time');
         if ($firstVisit && $lastVisit) {
-            $days = max(1, (int)ceil((strtotime($lastVisit) - strtotime($firstVisit)) / 86400) + 1);
+            $days = max(1, (int) ceil((strtotime($lastVisit) - strtotime($firstVisit)) / 86400) + 1);
         } else {
             $days = max(1, now()->diffInDays(now()->subMonth()) ?: 1);
         }
@@ -100,8 +100,8 @@ class VisitorController extends Controller
             $s = $request->c_search;
             $centerQuery->where(function ($q) use ($s) {
                 $q->where('center_name', 'like', "%{$s}%")
-                  ->orWhere('municipality_city', 'like', "%{$s}%")
-                  ->orWhere('barangay', 'like', "%{$s}%");
+                    ->orWhere('municipality_city', 'like', "%{$s}%")
+                    ->orWhere('barangay', 'like', "%{$s}%");
             });
         }
 
@@ -164,8 +164,8 @@ class VisitorController extends Controller
             $s = $request->s_search;
             $sdnCenters->where(function ($q) use ($s) {
                 $q->where('center_name', 'like', "%{$s}%")
-                  ->orWhere('municipality_city', 'like', "%{$s}%")
-                  ->orWhere('barangay', 'like', "%{$s}%");
+                    ->orWhere('municipality_city', 'like', "%{$s}%")
+                    ->orWhere('barangay', 'like', "%{$s}%");
             });
         }
         if ($request->filled('s_operational') && $request->s_operational !== 'ALL') {
@@ -267,7 +267,7 @@ class VisitorController extends Controller
             'demographic_sector' => $request->demographic_sector,
         ]);
 
-        $code = 'DTC-VIS-' . date('Y') . '-' . str_pad((Visit::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
+        $code = 'DTC-VIS-'.date('Y').'-'.str_pad((Visit::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
 
         $visit = Visit::create([
             'visit_code' => $code,
@@ -290,6 +290,7 @@ class VisitorController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['visitor' => $this->visitToArray($visit->load('visitor', 'dtcHub', 'services'))], 201);
         }
+
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor session recorded successfully.');
     }
@@ -340,6 +341,7 @@ class VisitorController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['visitor' => $this->visitToArray($visitor->fresh(['visitor', 'dtcHub', 'services']))]);
         }
+
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor log updated successfully.');
     }
@@ -351,8 +353,63 @@ class VisitorController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Visitor log removed.']);
         }
+
         return redirect()->back(302, [], route('dtc.visitors.index'))
             ->with('success', 'Visitor log removed.');
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $visits = Visit::whereIn('id', $request->ids)->with('visitor')->get();
+        $deleted = [];
+        $skipped = [];
+
+        foreach ($visits as $visit) {
+            try {
+                $label = $visit->visit_code.($visit->visitor ? ' — '.$visit->visitor->name : '');
+                $deleted[] = ['id' => $visit->id, 'label' => $label];
+                $visit->delete();
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $visit->id, 'label' => $visit->visit_code, 'reason' => 'Could not delete (database error).'];
+            }
+        }
+
+        $stats = [
+            'totalTraffic' => Visit::count(),
+            'uniqueCitizens' => Visitor::count(),
+        ];
+
+        $servicesCount = DtcService::query()
+            ->join('visit_services', 'visit_services.service_id', '=', 'dtc_services.id')
+            ->selectRaw('dtc_services.service_name, COUNT(*) as total')
+            ->groupBy('dtc_services.service_name')
+            ->pluck('total', 'service_name')
+            ->toArray();
+        arsort($servicesCount);
+        $topService = array_key_first($servicesCount);
+        $stats['topService'] = $topService ?: '—';
+        $stats['topServiceCount'] = $topService ? ($servicesCount[$topService] ?? 0) : 0;
+
+        $firstVisit = Visit::min('check_in_time');
+        $lastVisit = Visit::max('check_in_time');
+        if ($firstVisit && $lastVisit) {
+            $days = max(1, (int) ceil((strtotime($lastVisit) - strtotime($firstVisit)) / 86400) + 1);
+        } else {
+            $days = max(1, now()->diffInDays(now()->subMonth()) ?: 1);
+        }
+        $stats['avgDaily'] = $stats['totalTraffic'] > 0 ? round($stats['totalTraffic'] / $days, 1) : 0;
+
+        $message = 'Permanently deleted '.count($deleted).' visitor log(s).';
+        if (count($skipped) > 0) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        return response()->json(['deleted' => $deleted, 'skipped' => $skipped, 'stats' => $stats, 'message' => $message]);
     }
 
     public function import(Request $request)
@@ -371,7 +428,7 @@ class VisitorController extends Controller
                 $allRows = $spreadsheet->getActiveSheet()->toArray();
             } catch (\Exception $e) {
                 return redirect()->back(302, [], route('dtc.visitors.index'))
-                    ->with('error', 'Failed to read Excel file: ' . $e->getMessage());
+                    ->with('error', 'Failed to read Excel file: '.$e->getMessage());
             }
         } else {
             if (($handle = fopen($file->getPathname(), 'r')) !== false) {
@@ -388,10 +445,13 @@ class VisitorController extends Controller
         }
 
         $sanitize = function ($str) {
-            if ($str === null) return '';
-            $str = preg_replace('/\x{FEFF}/u', '', (string)$str);
+            if ($str === null) {
+                return '';
+            }
+            $str = preg_replace('/\x{FEFF}/u', '', (string) $str);
             $str = str_replace("\xc2\xa0", ' ', $str);
             $str = mb_strtolower($str);
+
             return preg_replace('/[^a-z0-9]/', '', $str);
         };
 
@@ -408,12 +468,15 @@ class VisitorController extends Controller
         ];
 
         $matchAlias = function ($sanitizedAlias, $sanitizedRow) {
-            if ($sanitizedAlias === '') return false;
+            if ($sanitizedAlias === '') {
+                return false;
+            }
             foreach ($sanitizedRow as $idx => $sanitizedHeader) {
                 if ($sanitizedHeader !== '' && str_contains($sanitizedHeader, $sanitizedAlias)) {
                     return $idx;
                 }
             }
+
             return false;
         };
 
@@ -422,7 +485,9 @@ class VisitorController extends Controller
 
         for ($r = 0; $r < min(15, count($allRows)); $r++) {
             $rowCandidate = $allRows[$r];
-            if (!is_array($rowCandidate) || empty(array_filter($rowCandidate))) continue;
+            if (! is_array($rowCandidate) || empty(array_filter($rowCandidate))) {
+                continue;
+            }
 
             $candidateMap = [];
             $sanitizedRow = array_map($sanitize, $rowCandidate);
@@ -446,7 +511,7 @@ class VisitorController extends Controller
 
         if ($headerRowIdx === null) {
             $rawHeaders = isset($allRows[0]) && is_array($allRows[0]) ? array_filter(array_map('trim', $allRows[0])) : [];
-            $foundColumnsStr = !empty($rawHeaders) ? implode(', ', array_slice($rawHeaders, 0, 10)) : 'None';
+            $foundColumnsStr = ! empty($rawHeaders) ? implode(', ', array_slice($rawHeaders, 0, 10)) : 'None';
 
             return redirect()->back(302, [], route('dtc.visitors.index'))
                 ->with('error', "Import failed: Missing required column(s) (Visitor Name and DTC Hub) in file. Detected headers: [{$foundColumnsStr}]. Please check your header row or download the template.");
@@ -456,14 +521,15 @@ class VisitorController extends Controller
 
         $resolveHub = function ($val) use ($hubsById) {
             if (is_numeric($val)) {
-                return isset($hubsById[(int)$val]) ? (int)$val : null;
+                return isset($hubsById[(int) $val]) ? (int) $val : null;
             }
             $needle = mb_strtolower(trim($val));
             foreach ($hubsById as $id => $name) {
                 if (mb_strtolower($name) === $needle || str_contains(mb_strtolower($name), $needle)) {
-                    return (int)$id;
+                    return (int) $id;
                 }
             }
+
             return null;
         };
 
@@ -474,22 +540,27 @@ class VisitorController extends Controller
         $errors = [];
 
         foreach ($dataRows as $i => $row) {
-            if (!is_array($row)) continue;
-            $filtered = array_filter($row, fn($v) => $v !== null && $v !== '');
-            if (empty($filtered)) continue;
+            if (! is_array($row)) {
+                continue;
+            }
+            $filtered = array_filter($row, fn ($v) => $v !== null && $v !== '');
+            if (empty($filtered)) {
+                continue;
+            }
 
             $row = array_pad($row, $maxColIdx + 1, '');
 
             $data = [];
             foreach ($map as $field => $idx) {
-                $val = isset($row[$idx]) ? trim((string)$row[$idx]) : '';
+                $val = isset($row[$idx]) ? trim((string) $row[$idx]) : '';
                 if ($val === '') {
                     $data[$field] = null;
+
                     continue;
                 }
 
                 if ($field === 'age') {
-                    $data[$field] = is_numeric($val) ? (int)$val : null;
+                    $data[$field] = is_numeric($val) ? (int) $val : null;
                 } elseif ($field === 'dtc_hub_id') {
                     $data[$field] = $resolveHub($val);
                 } elseif ($field === 'services') {
@@ -505,6 +576,7 @@ class VisitorController extends Controller
             if (empty($data['visitor_name']) || empty($data['dtc_hub_id'])) {
                 $rowNum = $headerRowIdx + $i + 2;
                 $errors[] = "Row {$rowNum}: missing Visitor Name or valid DTC Hub";
+
                 continue;
             }
 
@@ -517,7 +589,7 @@ class VisitorController extends Controller
                     'demographic_sector' => ($data['demographic_sector'] ?? null) ?: 'Unclassified',
                 ]);
 
-                $code = 'DTC-VIS-' . date('Y') . '-' . str_pad((Visit::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
+                $code = 'DTC-VIS-'.date('Y').'-'.str_pad((Visit::max('id') ?? 0) + 1, 3, '0', STR_PAD_LEFT);
 
                 $visit = Visit::create([
                     'visit_code' => $code,
@@ -541,13 +613,13 @@ class VisitorController extends Controller
                 $imported++;
             } catch (\Exception $e) {
                 $rowNum = $headerRowIdx + $i + 2;
-                $errors[] = "Row {$rowNum}: " . $e->getMessage();
+                $errors[] = "Row {$rowNum}: ".$e->getMessage();
             }
         }
 
         $message = "Imported {$imported} visitor log(s) successfully.";
-        if (!empty($errors)) {
-            $message .= ' Warnings/Errors: ' . implode('; ', array_slice($errors, 0, 5));
+        if (! empty($errors)) {
+            $message .= ' Warnings/Errors: '.implode('; ', array_slice($errors, 0, 5));
         }
 
         return redirect()->back(302, [], route('dtc.visitors.index'))
@@ -561,15 +633,15 @@ class VisitorController extends Controller
             throw new \InvalidArgumentException('Visitor name is required.');
         }
 
-        $contact = isset($data['contact_number']) && trim((string)$data['contact_number']) !== ''
-            ? trim((string)$data['contact_number'])
+        $contact = isset($data['contact_number']) && trim((string) $data['contact_number']) !== ''
+            ? trim((string) $data['contact_number'])
             : null;
 
         $visitor = $contact
             ? Visitor::where('name', $name)->where('contact_number', $contact)->first()
             : null;
 
-        if (!$visitor) {
+        if (! $visitor) {
             $visitor = Visitor::where('name', $name)->first();
         }
 
@@ -584,6 +656,7 @@ class VisitorController extends Controller
 
         if ($visitor) {
             $visitor->update($payload);
+
             return $visitor;
         }
 
@@ -594,8 +667,10 @@ class VisitorController extends Controller
     {
         $ids = [];
         foreach ($serviceNames ?? [] as $name) {
-            $name = trim((string)$name);
-            if ($name === '') continue;
+            $name = trim((string) $name);
+            if ($name === '') {
+                continue;
+            }
 
             $service = DtcService::where('dtc_hub_id', $hubId)->where('service_name', $name)->first()
                 ?? DtcService::where('service_name', $name)->first();
@@ -604,6 +679,7 @@ class VisitorController extends Controller
                 $ids[] = $service->id;
             }
         }
+
         return array_values(array_unique($ids));
     }
 
@@ -636,7 +712,7 @@ class VisitorController extends Controller
 
     private function formatDuration($checkIn, $checkOut): string
     {
-        if (!$checkIn || !$checkOut) {
+        if (! $checkIn || ! $checkOut) {
             return '—';
         }
         $minutes = abs((int) round($checkOut->diffInMinutes($checkIn)));
@@ -645,6 +721,7 @@ class VisitorController extends Controller
         }
         $h = intdiv($minutes, 60);
         $m = $minutes % 60;
+
         return $m > 0 ? "{$h} hr {$m} mins" : "{$h} hrs";
     }
 }

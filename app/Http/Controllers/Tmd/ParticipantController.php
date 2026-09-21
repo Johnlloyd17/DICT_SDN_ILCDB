@@ -39,9 +39,9 @@ class ParticipantController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('municipality', 'like', "%{$search}%")
-                  ->orWhere('agency_sector', 'like', "%{$search}%")
-                  ->orWhere('participant_code', 'like', "%{$search}%");
+                    ->orWhere('municipality', 'like', "%{$search}%")
+                    ->orWhere('agency_sector', 'like', "%{$search}%")
+                    ->orWhere('participant_code', 'like', "%{$search}%");
             });
         }
 
@@ -54,9 +54,37 @@ class ParticipantController extends Controller
         $lgus = Participant::distinct('municipality')->count('municipality');
         $completionRate = $total > 0 ? round($certified / $total * 100) : 0;
 
-        $batches = TrainingBatch::where('program', 'TMD')->orderBy('batch_code')->get();
+        $batches = TrainingBatch::where('program', 'TMD')
+            ->whereIn('status', ['Upcoming', 'Ongoing'])
+            ->orderBy('batch_code')
+            ->get();
+        $batchOptions = $batches->map(fn ($b) => [
+            'id' => $b->id,
+            'label' => $b->batch_code.' — '.$b->course_title,
+            'venue' => $b->venue,
+        ])->values();
         $penetration = TmdPenetration::orderBy('municipality')->get();
         $trainers = Trainer::orderBy('full_name')->get();
+
+        $editBatchOptions = $batches->map(fn ($b) => [
+            'id' => $b->id,
+            'label' => $b->batch_code.' — '.$b->course_title,
+            'venue' => $b->venue,
+        ])->keyBy('id');
+
+        $extraBatches = TrainingBatch::where('program', 'TMD')
+            ->whereNotIn('id', $editBatchOptions->keys())
+            ->whereIn('id', Participant::query()->select('training_batch_id')->whereNotNull('training_batch_id'))
+            ->get();
+
+        foreach ($extraBatches as $b) {
+            $editBatchOptions->put($b->id, [
+                'id' => $b->id,
+                'label' => $b->batch_code.' — '.$b->course_title,
+                'venue' => $b->venue,
+            ]);
+        }
+        $editBatchOptions = $editBatchOptions->values();
 
         $batchesAll = TrainingBatch::where('program', 'TMD')->orderByDesc('start_date')->paginate($perPage)->withQueryString();
         $allCourses = Course::orderBy('course_code')->paginate($perPage)->withQueryString();
@@ -67,7 +95,8 @@ class ParticipantController extends Controller
 
         return view('tmd.participants.index', compact(
             'participants', 'total', 'certified', 'uploaded', 'ongoing', 'lgus',
-            'completionRate', 'batches', 'penetration', 'trainers',
+            'completionRate', 'batches', 'batchOptions', 'editBatchOptions',
+            'penetration', 'trainers',
             'batchesAll', 'allCourses', 'penetrationRows',
             'penetrationGrandMale', 'penetrationGrandFemale', 'penetrationGrandTotal'
         ));
@@ -85,7 +114,7 @@ class ParticipantController extends Controller
         ]);
 
         $lastId = Participant::max('id') ?? 0;
-        $code = 'TMD-' . date('Y') . '-' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
+        $code = 'TMD-'.date('Y').'-'.str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
 
         $data = [
             'participant_code' => $code,
@@ -105,14 +134,17 @@ class ParticipantController extends Controller
 
         if ($request->wantsJson()) {
             $participant->load('trainingBatch');
+
             return response()->json(['participant' => $participant], 201);
         }
+
         return redirect()->route('tmd.participants.index')->with('success', 'Participant registered successfully.');
     }
 
     public function show(Participant $participant)
     {
         $participant->load('trainingBatch');
+
         return view('tmd.participants.show', compact('participant'));
     }
 
@@ -124,7 +156,16 @@ class ParticipantController extends Controller
             'municipality' => 'required|string|max:100',
             'agency_sector' => 'required|string|max:255',
             'completion_status' => 'required|in:Completed,Ongoing,Pending',
+            'completion_date' => 'nullable|date',
         ]);
+
+        if ($request->filled('completion_date')) {
+            $completionDate = $request->completion_date;
+        } elseif ($request->completion_status === 'Completed') {
+            $completionDate = $participant->completion_date?->toDateString() ?? now()->toDateString();
+        } else {
+            $completionDate = null;
+        }
 
         $participant->update([
             'full_name' => $request->full_name,
@@ -132,10 +173,14 @@ class ParticipantController extends Controller
             'municipality' => $request->municipality,
             'agency_sector' => $request->agency_sector,
             'completion_status' => $request->completion_status,
-            'completion_date' => $request->completion_status === 'Completed' && !$participant->completion_date
-                ? now()->toDateString()
-                : $participant->completion_date,
+            'completion_date' => $completionDate,
         ]);
+
+        if ($request->wantsJson()) {
+            $participant->load('trainingBatch');
+
+            return response()->json(['participant' => $participant]);
+        }
 
         return redirect()->route('tmd.participants.index')->with('success', 'Participant updated.');
     }
@@ -150,7 +195,50 @@ class ParticipantController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Participant removed.']);
         }
+
         return redirect()->route('tmd.participants.index')->with('success', 'Participant removed.');
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = array_values(array_unique($request->ids));
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($ids as $id) {
+            $participant = Participant::find($id);
+            if (! $participant) {
+                $skipped[] = ['id' => $id, 'label' => "ID {$id}", 'reason' => 'Participant not found.'];
+
+                continue;
+            }
+
+            try {
+                if ($participant->certificate_file) {
+                    Storage::disk('public')->delete($participant->certificate_file);
+                }
+                $participant->delete();
+                $deleted++;
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $id, 'label' => $participant->full_name, 'reason' => $e->getMessage()];
+            }
+        }
+
+        $message = "Successfully deleted {$deleted} participant(s).";
+        if (! empty($skipped)) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(compact('message', 'deleted', 'skipped'));
+        }
+
+        return redirect()->route('tmd.participants.index')->with('success', $message);
     }
 
     public function uploadCertificate(Request $request, Participant $participant)
@@ -169,6 +257,7 @@ class ParticipantController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['participant' => $participant->fresh()]);
         }
+
         return redirect()->route('tmd.participants.index')->with('success', 'Certificate uploaded.');
     }
 
@@ -182,6 +271,7 @@ class ParticipantController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['participant' => $participant->fresh()]);
         }
+
         return redirect()->route('tmd.participants.index')->with('success', 'Certificate removed.');
     }
 }

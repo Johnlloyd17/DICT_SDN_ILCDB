@@ -263,14 +263,15 @@
             </tbody>
         </table>
     </div>
-    <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-        <span>Showing <span x-text="filtered.length ? ((currentPage - 1) * perPage + 1) : 0"></span>–<span x-text="Math.min(currentPage * perPage, filtered.length)"></span> of <span x-text="filtered.length"></span> centers</span>
-    </div>
-    <div class="mt-2 flex items-center gap-1" x-show="totalPages > 1">
-        <button x-on:click="prevPage()" :disabled="currentPage <= 1" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">&laquo; Prev</button>
-        <template x-for="p in totalPages" :key="p">
-            <button x-on:click="goToPage(p)" :class="p === currentPage ? 'bg-cyan-700 text-white border-cyan-700' : 'border-slate-300 hover:bg-slate-100'" class="px-3 py-1 rounded-lg text-xs font-semibold border" x-text="p"></button>
-        </template>
-        <button x-on:click="nextPage()" :disabled="currentPage >= totalPages" class="px-3 py-1 rounded-lg text-xs font-semibold border border-slate-300 disabled:opacity-40 hover:bg-slate-100">Next &raquo;</button>
-    </div>
+    <x-data-table-footer
+        showing="`Showing ${filtered.length ? ((currentPage - 1) * perPage + 1) : 0}–${Math.min(currentPage * perPage, filtered.length)} of ${filtered.length} centers`"
+        pages="totalPages"
+        pageExpr="goToPage(pg)"
+        activeExpr="pg === currentPage"
+        prevClick="prevPage()"
+        nextClick="nextPage()"
+        prevDisabled="currentPage <= 1"
+        nextDisabled="currentPage >= totalPages"
+        keyPrefix="dpc"
+    />
 </div>

@@ -112,6 +112,9 @@
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                         <input type="text" x-model="search" placeholder="Search courses..." class="w-full sm:w-48 pl-8 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
                     </div>
+                    <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition inline-flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i> Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
                     <button x-on:click="showAdd = true" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-[11px] font-semibold transition inline-flex items-center gap-1.5">
                         <i class="fa-solid fa-plus"></i> Add Training
                     </button>
@@ -122,6 +125,9 @@
                 <table class="w-full text-left text-xs">
                     <thead class="bg-slate-100 text-slate-600 uppercase font-semibold border-b">
                         <tr>
+                            <th class="p-3 w-10">
+                                <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-amber-700 focus:ring-amber-500 cursor-pointer" title="Select All On This Page">
+                            </th>
                             <th class="p-3">Track ID</th>
                             <th class="p-3">Specialization Course</th>
                             <th class="p-3">Master Trainer</th>
@@ -134,7 +140,10 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 font-medium text-slate-700">
                         <template x-for="(t, i) in pagedTrainings" :key="t.id">
-                            <tr class="hover:bg-slate-50 transition">
+                            <tr class="hover:bg-slate-50 transition" :class="selectedIds.includes(t.id) ? 'bg-amber-50/60' : ''">
+                                <td class="p-3">
+                                    <input type="checkbox" :value="t.id" x-model.number="selectedIds" class="rounded text-amber-700 focus:ring-amber-500 cursor-pointer">
+                                </td>
                                 <td class="p-3 font-mono text-amber-700 font-semibold" x-text="t.track_id"></td>
                                 <td class="p-3 font-semibold" x-text="t.specialization"></td>
                                 <td class="p-3" x-text="t.master_trainer"></td>
@@ -147,6 +156,7 @@
                                     <span x-show="t.status === 'Upcoming'" class="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-semibold">Upcoming</span>
                                 </td>
                                 <td class="p-3 text-center">
+                                    <button x-on:click="openEdit(t)" class="text-blue-400 hover:text-blue-600 p-1 mr-1" title="Edit"><i class="fa-solid fa-pen"></i></button>
                                     <button x-on:click="deleteRecord(t)" class="text-slate-400 hover:text-red-600 p-1" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                 </td>
                             </tr>
@@ -160,30 +170,15 @@
             </div>
 
             {{-- PAGINATION --}}
-            <div class="border-t border-slate-200 pt-3 flex flex-col lg:flex-row items-center justify-between gap-3">
-                <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                    <span>Rows per page:</span>
-                    <select x-model.number="perPage" x-on:change="page = 1" class="text-xs p-1.5 border border-slate-300 rounded-lg outline-none bg-white font-medium text-slate-700 focus:ring-2 focus:ring-amber-500">
-                        <template x-for="n in [5, 10, 20, 30, 50, 100]" :key="n">
-                            <option :value="n" x-text="n"></option>
-                        </template>
-                    </select>
-                </div>
-                <div class="text-[11px] text-slate-500 font-medium" x-text="`Showing ${pageFrom}–${pageTo} of ${filteredTrainings.length}`"></div>
-                <div class="flex items-center gap-1">
-                    <button x-on:click="page = page - 1" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Previous">
-                        <i class="fa-solid fa-chevron-left text-[9px]"></i>
-                    </button>
-                    <template x-for="p in pageNumbers" :key="'tp' + p">
-                        <button x-on:click="page = p" :class="page === p ? 'bg-amber-600 text-white border-amber-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border">
-                            <span x-text="p"></span>
-                        </button>
-                    </template>
-                    <button x-on:click="page = page + 1" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Next">
-                        <i class="fa-solid fa-chevron-right text-[9px]"></i>
-                    </button>
-                </div>
-            </div>
+            <x-data-table-footer
+                showing="`Showing ${pageFrom}–${pageTo} of ${filteredTrainings.length}`"
+                pageExpr="page = pg"
+                prevClick="page--"
+                nextClick="page++"
+                perPage="perPage"
+                :perPageOptions="[5, 10, 20, 30, 50, 100]"
+                keyPrefix="tp"
+            />
         </div>
 
         {{-- ADD TRAINING MODAL --}}
@@ -239,6 +234,69 @@
                 </form>
             </div>
         </div>
+
+        {{-- EDIT TRAINING MODAL --}}
+        <div x-show="showEdit" x-cloak x-transition.opacity x-on:keydown.escape.window="showEdit = false" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div x-show="showEdit" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-800 to-yellow-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+                    <h3 class="font-bold flex items-center gap-2"><i class="fa-solid fa-pen text-yellow-300"></i> Edit SPARK Training</h3>
+                    <button x-on:click="showEdit = false" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form x-on:submit.prevent="updateTraining($event.target)" class="p-6 space-y-4 text-xs overflow-y-auto custom-scrollbar flex-1 min-h-0">
+                    <template x-if="formError">
+                        <div class="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-2.5 text-xs font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span x-text="formError"></span>
+                        </div>
+                    </template>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Track ID</label>
+                            <input type="text" disabled class="w-full text-xs p-2.5 border border-slate-200 bg-slate-50 rounded-lg text-slate-400 font-mono" x-bind:value="editForm.track_id">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                            <select name="status" required x-model="editForm.status" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                <option value="Upcoming">Upcoming</option>
+                                <option value="Ongoing">Ongoing</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Specialization Course</label>
+                        <input type="text" name="specialization" required x-model="editForm.specialization" placeholder="e.g. Applied AI & Machine Learning" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Master Trainer</label>
+                            <input type="text" name="master_trainer" required x-model="editForm.master_trainer" placeholder="Trainer name" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Industry Partner</label>
+                            <input type="text" name="industry_partner" required x-model="editForm.industry_partner" placeholder="Partner org" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Enrolled Trainees</label>
+                            <input type="number" name="enrolled_count" required min="0" x-model="editForm.enrolled_count" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Budget Allocated (₱)</label>
+                            <input type="number" name="budget_allocated" required min="0" step="0.01" x-model="editForm.budget_allocated" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" x-on:click="showEdit = false" class="px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 text-xs">Cancel</button>
+                        <button type="submit" :disabled="saving" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shadow text-xs disabled:opacity-50">
+                            <template x-if="saving"><span class="flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i> Updating...</span></template>
+                            <template x-if="!saving"><span><i class="fa-solid fa-save mr-1"></i> Update Training</span></template>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     @push('scripts')
@@ -249,15 +307,22 @@
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const storeUrl = '{{ route("spark.trainings.store") }}';
             const destroyUrl = '{{ route("spark.trainings.destroy", ["training" => "__ID__"]) }}';
+            const updateUrl = '{{ route("spark.trainings.update", ["training" => "__ID__"]) }}';
+            const batchDeleteUrl = '{{ route("spark.trainings.batchDelete") }}';
             return {
                 trainings: seed,
                 search: '',
                 statusFilter: 'ALL',
                 showAdd: false,
+                showEdit: false,
+                editForm: {},
+                formError: '',
                 notice: '',
                 noticeType: 'success',
+                saving: false,
                 page: 1,
                 perPage: 10,
+                selectedIds: [],
 
                 get filteredTrainings() {
                     const q = this.search.trim().toLowerCase();
@@ -291,10 +356,23 @@
                     const start = (this.page - 1) * this.perPage;
                     return this.filteredTrainings.slice(start, start + this.perPage);
                 },
+                get allPageSelected() {
+                    const pageIds = this.pagedTrainings.map(t => t.id);
+                    return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                },
+                toggleSelectAll() {
+                    const pageIds = this.pagedTrainings.map(t => t.id);
+                    const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                    if (allOnPage) {
+                        this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                    } else {
+                        this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                    }
+                },
 
                 init() {
-                    this.$watch('search', () => this.page = 1);
-                    this.$watch('statusFilter', () => this.page = 1);
+                    this.$watch('search', () => { this.page = 1; this.selectedIds = []; });
+                    this.$watch('statusFilter', () => { this.page = 1; this.selectedIds = []; });
                 },
 
                 flash(message, type = 'success') {
@@ -323,6 +401,33 @@
                     }
                 },
 
+                async openEdit(t) {
+                    this.editForm = Object.assign({}, t);
+                    this.formError = '';
+                    this.showEdit = true;
+                },
+
+                async updateTraining(form) {
+                    const formData = new FormData(form);
+                    formData.append('_method', 'PUT');
+                    try {
+                        const res = await fetch(updateUrl.replace('__ID__', this.editForm.id), {
+                            method: 'POST',
+                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                            body: formData,
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.message || 'Something went wrong. Please try again.');
+                        const idx = this.trainings.findIndex(t => t.id === data.training.id);
+                        if (idx > -1) this.trainings[idx] = data.training;
+                        this.showEdit = false;
+                        this.formError = '';
+                        this.flash('Training updated successfully.');
+                    } catch (e) {
+                        this.formError = e.message;
+                    }
+                },
+
                 async deleteRecord(r) {
                     if (!confirm('Delete this training?')) return;
                     try {
@@ -334,10 +439,45 @@
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.message || 'Delete failed. Please try again.');
                         this.trainings = this.trainings.filter(t => t.id !== r.id);
+                        this.selectedIds = this.selectedIds.filter(id => id !== r.id);
                         this.flash('Training deleted successfully.');
                     } catch (e) {
                         this.flash(e.message, 'error');
                     }
+                },
+
+                async batchDelete() {
+                    const ids = [...this.selectedIds];
+                    if (!ids.length) return;
+                    const labels = this.filteredTrainings.filter(t => ids.includes(t.id)).map(t => t.track_id + ' — ' + t.specialization);
+                    window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                        detail: {
+                            title: 'Delete SPARK Trainings',
+                            count: ids.length,
+                            labels,
+                            onConfirm: async () => {
+                                if (this.saving) return;
+                                this.saving = true;
+                                try {
+                                    const res = await fetch(batchDeleteUrl, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                        body: JSON.stringify({ ids }),
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.message || 'Batch delete failed.');
+                                    const skippedIds = (data.skipped || []).map(s => s.id);
+                                    this.trainings = this.trainings.filter(t => !ids.includes(t.id) || skippedIds.includes(t.id));
+                                    this.selectedIds = [];
+                                    this.flash(data.message || 'Selected trainings deleted.', (data.skipped || []).length ? 'error' : 'success');
+                                } catch (e) {
+                                    this.flash(e.message, 'error');
+                                } finally {
+                                    this.saving = false;
+                                }
+                            },
+                        },
+                    }));
                 },
             };
         }

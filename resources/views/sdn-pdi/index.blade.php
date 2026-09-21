@@ -532,7 +532,10 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-4">{{ $sdnCenters->links() }}</div>
+                <div class="border-t border-slate-200/80 bg-slate-50/40 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+                    <span class="text-[11px] text-slate-500 font-medium whitespace-nowrap">Showing {{ $sdnCenters->firstItem() ?? 0 }}–{{ $sdnCenters->lastItem() ?? 0 }} of {{ $sdnCenters->total() }} centers</span>
+                    {{ $sdnCenters->links() }}
+                </div>
             </div>
         </div>
 
@@ -707,10 +710,10 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-4 flex items-center justify-between text-xs text-slate-500">
-                    <span>Showing {{ $sdnCenters->total() }} centers</span>
+                <div class="border-t border-slate-200/80 bg-slate-50/40 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+                    <span class="text-[11px] text-slate-500 font-medium whitespace-nowrap">Showing {{ $sdnCenters->firstItem() ?? 0 }}–{{ $sdnCenters->lastItem() ?? 0 }} of {{ $sdnCenters->total() }} centers</span>
+                    {{ $sdnCenters->links() }}
                 </div>
-                <div class="mt-2">{{ $sdnCenters->links() }}</div>
             </div>
         </div>
 

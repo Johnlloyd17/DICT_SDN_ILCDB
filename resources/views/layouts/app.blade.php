@@ -51,6 +51,9 @@
                                 <p class="text-[10px] text-slate-400">{{ Auth::user()->email }}</p>
                             </div>
                             <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50">Profile</a>
+                            @if (Auth::user()->is_admin)
+                                <a href="{{ route('settings.database.index') }}" class="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50">Settings</a>
+                            @endif
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="w-full px-4 py-2 text-xs text-left text-red-600 hover:bg-red-50">Logout</button>
@@ -86,6 +89,118 @@
         <span>{{ session('error') }}</span>
     </div>
     @endif
+
+    {{-- BULK DELETE CONFIRMATION MODAL (shared) --}}
+    <div x-data="bulkDeleteModal()" x-on:keydown.escape.window="cancel()" x-show="open" style="display: none;"
+         x-transition.opacity class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div x-show="open"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95"
+             class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            <div class="bg-red-600 text-white px-6 py-4 flex items-center justify-between">
+                <h3 class="font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can text-red-200"></i>
+                    <span x-text="title"></span>
+                </h3>
+                <button x-on:click="cancel()" class="text-white/60 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 text-xs max-h-[50vh] overflow-y-auto">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-triangle-exclamation text-lg"></i></div>
+                    <div>
+                        <p class="font-bold text-slate-800" x-text="description ? description : ('Delete ' + count + ' selected record(s)?')"></p>
+                        <p class="text-slate-500 mt-0.5">This action cannot be undone.</p>
+                    </div>
+                </div>
+                <div x-show="warning" x-cloak class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-3 font-semibold" x-text="warning"></div>
+                <template x-if="previewLines.length">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Records to be deleted</p>
+                        <ul class="space-y-1">
+                            <template x-for="(line, i) in previewLines" :key="i">
+                                <li class="flex items-center gap-2 text-slate-700">
+                                    <i class="fa-solid fa-file-circle-xmark text-red-400"></i>
+                                    <span x-text="line"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </template>
+                <template x-if="!previewLines.length && labels.length">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Records to be deleted</p>
+                        <ul class="space-y-1">
+                            <template x-for="(lab, i) in labels.slice(0, 6)" :key="i">
+                                <li class="flex items-center gap-2 text-slate-700">
+                                    <i class="fa-solid fa-file-circle-xmark text-red-400"></i>
+                                    <span class="truncate" x-text="lab"></span>
+                                </li>
+                            </template>
+                        </ul>
+                        <p x-show="labels.length > 6" class="mt-2 text-slate-400 font-medium" x-text="'+ ' + (labels.length - 6) + ' more…'"></p>
+                    </div>
+                </template>
+                <div class="flex justify-end gap-3 pt-5">
+                    <button type="button" x-on:click="cancel()" class="bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 px-4 py-2 text-xs">Cancel</button>
+                    <button type="button" x-on:click="proceed()" :disabled="busy" class="bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow px-4 py-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-trash mr-1" :class="busy && 'fa-spinner fa-spin'"></i> Delete <span x-text="count"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.bulkDeleteModal = function () {
+            return {
+                open: false,
+                busy: false,
+                title: 'Delete Records',
+                count: 0,
+                labels: [],
+                description: '',
+                previewLines: [],
+                warning: '',
+                confirmAction: null,
+                init() {
+                    window.addEventListener('confirm-bulk-delete', (e) => {
+                        this.title = e.detail.title || 'Delete Records';
+                        this.count = e.detail.count || 0;
+                        this.labels = (e.detail.labels || []).slice(0, 20);
+                        this.description = e.detail.description || '';
+                        this.previewLines = (e.detail.previewLines || []).slice(0, 20);
+                        this.warning = e.detail.warning || '';
+                        this.confirmAction = e.detail.onConfirm || null;
+                        this.open = true;
+                    });
+                },
+                cancel() {
+                    this.open = false;
+                    this.confirmAction = null;
+                    this.busy = false;
+                    this.description = '';
+                    this.previewLines = [];
+                },
+                async proceed() {
+                    if (!this.confirmAction || this.busy) return;
+                    this.busy = true;
+                    try {
+                        await this.confirmAction();
+                        this.open = false;
+                    } catch (e) {
+                        // errors are already flashed by the caller
+                    } finally {
+                        this.confirmAction = null;
+                        this.busy = false;
+                    }
+                },
+            };
+        };
+    </script>
 
     @stack('scripts')
 </body>

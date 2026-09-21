@@ -25,9 +25,9 @@ class DeviceController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('batch_id', 'like', "%{$search}%")
-                  ->orWhere('device_type', 'like', "%{$search}%")
-                  ->orWhere('beneficiary', 'like', "%{$search}%")
-                  ->orWhere('municipality', 'like', "%{$search}%");
+                    ->orWhere('device_type', 'like', "%{$search}%")
+                    ->orWhere('beneficiary', 'like', "%{$search}%")
+                    ->orWhere('municipality', 'like', "%{$search}%");
             });
         }
 
@@ -72,13 +72,14 @@ class DeviceController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['device' => $device], 201);
         }
+
         return redirect()->route('click.devices.index')->with('success', 'Device donation logged successfully.');
     }
 
     public function update(Request $request, ClickDevice $device)
     {
         $request->validate([
-            'batch_id' => 'required|string|max:50|unique:click_devices,batch_id,' . $device->id,
+            'batch_id' => 'required|string|max:50|unique:click_devices,batch_id,'.$device->id,
             'donation_date' => 'required|date',
             'device_type' => 'required|string|max:255',
             'quantity' => 'required|integer|min:1',
@@ -95,6 +96,7 @@ class DeviceController extends Controller
         if ($request->wantsJson()) {
             return response()->json(['device' => $device->fresh()]);
         }
+
         return redirect()->route('click.devices.index')->with('success', 'Device record updated.');
     }
 
@@ -105,6 +107,46 @@ class DeviceController extends Controller
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Device record removed.']);
         }
+
         return redirect()->route('click.devices.index')->with('success', 'Device record removed.');
+    }
+
+    public function batchDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = array_values(array_unique($request->ids));
+        $deleted = 0;
+        $skipped = [];
+
+        foreach ($ids as $id) {
+            $device = ClickDevice::find($id);
+            if (! $device) {
+                $skipped[] = ['id' => $id, 'label' => "ID {$id}", 'reason' => 'Device record not found.'];
+
+                continue;
+            }
+
+            try {
+                $device->delete();
+                $deleted++;
+            } catch (\Throwable $e) {
+                $skipped[] = ['id' => $id, 'label' => $device->batch_id, 'reason' => $e->getMessage()];
+            }
+        }
+
+        $message = "Successfully deleted {$deleted} device record(s).";
+        if (! empty($skipped)) {
+            $message .= ' '.count($skipped).' skipped.';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(compact('message', 'deleted', 'skipped'));
+        }
+
+        return redirect()->route('click.devices.index')->with('success', $message);
     }
 }

@@ -2,13 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureEmailIsVerified;
+use App\Models\DtcCenterInventory;
 use App\Models\DtcHub;
 use App\Models\DtcService;
 use App\Models\User;
 use App\Models\Visit;
-use App\Models\Visitor;
-use Database\Seeders\DtcHubSeeder;
-use Database\Seeders\DtcServiceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
@@ -24,7 +23,30 @@ class DtcVisitorRegisterTest extends TestCase
 
     protected function seedDtc(): void
     {
-        $this->seed([DtcHubSeeder::class, DtcServiceSeeder::class]);
+        $hub = DtcHub::create([
+            'name' => 'Surigao City DTC Main Hub',
+            'municipality' => 'Surigao City',
+            'latitude' => 9.7894,
+            'longitude' => 125.4958,
+            'status' => 'Active',
+        ]);
+
+        $services = [
+            ['Free High-Speed Internet', 'Internet/Connectivity'],
+            ['eGov PH & Government Portal Access', 'Internet/Connectivity'],
+            ['Printing & Document Scanning', 'Productivity'],
+            ['Co-working & Freelance Space', 'Productivity'],
+            ['Tech Assistance & Consultation', 'Support'],
+        ];
+
+        foreach ($services as [$name, $category]) {
+            DtcService::create([
+                'dtc_hub_id' => $hub->id,
+                'service_name' => $name,
+                'category' => $category,
+                'is_active' => true,
+            ]);
+        }
     }
 
     public function test_dashboard_renders_and_service_tab_has_services(): void
@@ -177,12 +199,12 @@ class DtcVisitorRegisterTest extends TestCase
         $hub = DtcHub::first();
 
         $csv = "Visitor Name,Contact Number,Gender,Age,Demographic Sector,DTC Hub,Services,Purpose of Visit,Visit Date\n"
-             . "Imported Citizen,09444444444,Male,30,Student / Youth,{$hub->name},Free High-Speed Internet; Printing & Document Scanning,Apply online,2026-09-01 09:00:00\n";
+             ."Imported Citizen,09444444444,Male,30,Student / Youth,{$hub->name},Free High-Speed Internet; Printing & Document Scanning,Apply online,2026-09-01 09:00:00\n";
 
         $file = UploadedFile::fake()->createWithContent('visitors.csv', $csv);
 
         $response = $this->actingAs($this->user())
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.visitors.import'), ['file' => $file]);
 
         $response->assertRedirect(route('dtc.visitors.index'));
@@ -214,7 +236,7 @@ class DtcVisitorRegisterTest extends TestCase
             ], ['Accept' => 'application/json'])->assertStatus(201);
 
         $template = $this->actingAs($this->user())
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->get(route('export.template', 'dtc-visitors'));
         $template->assertStatus(200);
         $template->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
@@ -224,14 +246,14 @@ class DtcVisitorRegisterTest extends TestCase
         }
 
         $csv = $this->actingAs($this->user())
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->get(route('export.csv', 'dtc-visitors'));
         $csv->assertStatus(200);
         $this->assertStringContainsString('Export Me', $csv->streamedContent());
         $this->assertStringContainsString($hub->name, $csv->streamedContent());
     }
 
-    public function test_api_endpoints_returnChartData(): void
+    public function test_api_endpoints_return_chart_data(): void
     {
         $this->seedDtc();
         $hub = DtcHub::first();
@@ -314,10 +336,10 @@ class DtcVisitorRegisterTest extends TestCase
 
     public function test_centers_tab_receives_all_centers_for_client_side_pagination(): void
     {
-        \App\Models\DtcCenterInventory::truncate();
+        DtcCenterInventory::truncate();
 
         for ($i = 1; $i <= 65; $i++) {
-            \App\Models\DtcCenterInventory::create([
+            DtcCenterInventory::create([
                 'municipality_city' => $i % 2 === 0 ? 'Surigao City' : 'Mainit',
                 'center_name' => "Test Center {$i}",
                 'barangay' => "Barangay {$i}",
@@ -342,10 +364,10 @@ class DtcVisitorRegisterTest extends TestCase
 
     public function test_dashboard_widget_receives_all_sdn_centers_for_client_side_pagination(): void
     {
-        \App\Models\DtcCenterInventory::truncate();
+        DtcCenterInventory::truncate();
 
         for ($i = 1; $i <= 65; $i++) {
-            \App\Models\DtcCenterInventory::create([
+            DtcCenterInventory::create([
                 'municipality_city' => $i % 2 === 0 ? 'Surigao City' : 'Mainit',
                 'center_name' => "Test Center {$i}",
                 'barangay' => "Barangay {$i}",

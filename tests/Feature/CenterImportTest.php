@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Models\DtcCenterInventory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class CenterImportTest extends TestCase
@@ -17,12 +21,12 @@ class CenterImportTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
 
         $csvContent = "Congressional District,Province,Municipality/City,Barangay,Center Name,Verified\n"
-                    . "District 1,Surigao del Norte,Surigao City,Washington,DTC Center 1,Yes\n";
+                    ."District 1,Surigao del Norte,Surigao City,Washington,DTC Center 1,Yes\n";
 
         $file = UploadedFile::fake()->createWithContent('centers.csv', $csvContent);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
@@ -43,13 +47,13 @@ class CenterImportTest extends TestCase
 
         // UTF-8 BOM + header variations like "Municipality / City" and "Center_Name"
         $bom = "\xEF\xBB\xBF";
-        $csvContent = $bom . "Municipality / City,Center_Name,Barangay\n"
-                    . "Mainit,Mainit Tech Hub,Poblacion\n";
+        $csvContent = $bom."Municipality / City,Center_Name,Barangay\n"
+                    ."Mainit,Mainit Tech Hub,Poblacion\n";
 
         $file = UploadedFile::fake()->createWithContent('centers_bom.csv', $csvContent);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
@@ -70,12 +74,12 @@ class CenterImportTest extends TestCase
 
         // "Municipality" instead of "Municipality/City", "Name" instead of "Center Name"
         $csvContent = "Municipality,Name,Status\n"
-                    . "Dapa,Siargao DTC,Operational\n";
+                    ."Dapa,Siargao DTC,Operational\n";
 
         $file = UploadedFile::fake()->createWithContent('centers_alt.csv', $csvContent);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
@@ -96,13 +100,13 @@ class CenterImportTest extends TestCase
 
         // Title banner on line 1, header on line 2
         $csvContent = "DICT SURIGAO DEL NORTE DTC LIST 2026,,\n"
-                    . "Municipality/City,Center Name,Barangay\n"
-                    . "Claver,Claver Tech Hub,Tayaga\n";
+                    ."Municipality/City,Center Name,Barangay\n"
+                    ."Claver,Claver Tech Hub,Tayaga\n";
 
         $file = UploadedFile::fake()->createWithContent('centers_row2.csv', $csvContent);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
@@ -122,12 +126,12 @@ class CenterImportTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
 
         $csvContent = "Random Column A,Random Column B\n"
-                    . "Value 1,Value 2\n";
+                    ."Value 1,Value 2\n";
 
         $file = UploadedFile::fake()->createWithContent('bad_headers.csv', $csvContent);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
@@ -140,7 +144,7 @@ class CenterImportTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // Row 1: merged group headers
@@ -208,21 +212,21 @@ class CenterImportTest extends TestCase
         }
 
         // Save to temp file
-        $tempPath = tempnam(sys_get_temp_dir(), 'center_import_') . '.xlsx';
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tempPath = tempnam(sys_get_temp_dir(), 'center_import_').'.xlsx';
+        $writer = new Xlsx($spreadsheet);
         $writer->save($tempPath);
 
-        $file = new \Illuminate\Http\UploadedFile($tempPath, 'centers_2row.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+        $file = new UploadedFile($tempPath, 'centers_2row.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
 
         $response->assertRedirect(route('dtc.centers.index'));
         if (session('error')) {
-            $this->fail('Import error: ' . session('error'));
+            $this->fail('Import error: '.session('error'));
         }
         $response->assertSessionHas('success');
 
@@ -250,7 +254,7 @@ class CenterImportTest extends TestCase
         ]);
 
         // Verify center_name is NOT a number (the bug symptom)
-        $center = \App\Models\DtcCenterInventory::first();
+        $center = DtcCenterInventory::first();
         $this->assertIsString($center->center_name);
         $this->assertNotEmpty($center->center_name);
         $this->assertMatchesRegularExpression('/[a-zA-Z]/', $center->center_name, 'Center Name should contain letters, not just numbers');
@@ -270,7 +274,7 @@ class CenterImportTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // Row 1: merged group headers (identical to the real complaint file)
@@ -325,26 +329,26 @@ class CenterImportTest extends TestCase
         foreach ($dataRows as $ri => $row) {
             $excelRow = $ri + 3;
             foreach ($row as $ci => $val) {
-                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci + 1);
+                $colLetter = Coordinate::stringFromColumnIndex($ci + 1);
                 $sheet->setCellValue("{$colLetter}{$excelRow}", $val);
             }
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'center_regression_') . '.xlsx';
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tempPath = tempnam(sys_get_temp_dir(), 'center_regression_').'.xlsx';
+        $writer = new Xlsx($spreadsheet);
         $writer->save($tempPath);
 
-        $file = new \Illuminate\Http\UploadedFile($tempPath, 'centers_regression.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+        $file = new UploadedFile($tempPath, 'centers_regression.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
 
         $response->assertRedirect(route('dtc.centers.index'));
         if (session('error')) {
-            $this->fail('Import error: ' . session('error'));
+            $this->fail('Import error: '.session('error'));
         }
         $response->assertSessionHas('success');
 
@@ -400,19 +404,19 @@ class CenterImportTest extends TestCase
         // This mirrors the CSV our own export produces: flat single header,
         // disambiguated "TCMS Status" / "TCMS Verification Status" names.
         $csvContent = "No.,Congressional District,Province,Municipality/City,Barangay,Center Name,Longitude,Latitude,Verified,MOA Date of Signing,Date of Launching,Date of Platform Registration,TCMS Status,TCMS Key,TCMS Identifier,TCMS Verification Status,ODK Status,Connectivity Status,Type of Center Host,Operational Status\n"
-                    . "1,1st District,Surigao del Norte,Surigao City,Washington,Surigao Tech Hub,120.605522,16.575633,Yes,2023-01-15,2023-06-20,2023-09-01,Established,KEY-1,ID-1,For Scheduling,TRUE,ONLINE,LGU,OPERATIONAL\n";
+                    ."1,1st District,Surigao del Norte,Surigao City,Washington,Surigao Tech Hub,120.605522,16.575633,Yes,2023-01-15,2023-06-20,2023-09-01,Established,KEY-1,ID-1,For Scheduling,TRUE,ONLINE,LGU,OPERATIONAL\n";
 
         $file = UploadedFile::fake()->createWithContent('centers_export.csv', $csvContent);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
 
         $response->assertRedirect(route('dtc.centers.index'));
         if (session('error')) {
-            $this->fail('Import error: ' . session('error'));
+            $this->fail('Import error: '.session('error'));
         }
         $response->assertSessionHas('success');
 
@@ -445,7 +449,7 @@ class CenterImportTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
 
         // Build an XLSX that matches the new flat single-header export format.
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         $headers = [
@@ -485,21 +489,21 @@ class CenterImportTest extends TestCase
             $sheet->setCellValue("{$col}2", $val);
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'center_flat_') . '.xlsx';
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tempPath = tempnam(sys_get_temp_dir(), 'center_flat_').'.xlsx';
+        $writer = new Xlsx($spreadsheet);
         $writer->save($tempPath);
 
-        $file = new \Illuminate\Http\UploadedFile($tempPath, 'centers_flat.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+        $file = new UploadedFile($tempPath, 'centers_flat.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.import'), [
                 'file' => $file,
             ]);
 
         $response->assertRedirect(route('dtc.centers.index'));
         if (session('error')) {
-            $this->fail('Import error: ' . session('error'));
+            $this->fail('Import error: '.session('error'));
         }
         $response->assertSessionHas('success');
 
@@ -531,7 +535,7 @@ class CenterImportTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->get(route('dtc.centers.index', ['per_page' => 50]));
 
         $response->assertStatus(200);
@@ -554,7 +558,7 @@ class CenterImportTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->withoutMiddleware(\App\Http\Middleware\EnsureEmailIsVerified::class)
+            ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post(route('dtc.centers.batchDelete'), [
                 'ids' => [$c1->id, $c2->id],
             ]);
@@ -566,4 +570,3 @@ class CenterImportTest extends TestCase
         $this->assertDatabaseMissing('dtc_center_inventories', ['id' => $c2->id]);
     }
 }
-

@@ -109,7 +109,7 @@
                 <thead>
                     <tr style="background-color: #9DC3E6;">
                         <th rowspan="2" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-size: 12px; font-weight: bold; background-color: #9DC3E6;">
-                            <input type="checkbox" :checked="selectedIds.length > 0 && selectedIds.length === pagedCenters.length && pagedCenters.length > 0" x-on:change="toggleSelectAll()" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer" title="Select All On This Page">
+                            <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-cyan-700 focus:ring-cyan-500 cursor-pointer" title="Select All On This Page">
                         </th>
                         <th rowspan="2" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-size: 12px; font-weight: bold;">No.</th>
                         <th colspan="5" style="border: 1px solid #000; text-align: center; vertical-align: middle; padding: 4px 6px; font-size: 12px; font-weight: bold; background-color: #9DC3E6;">CENTER DETAILS</th>
@@ -181,18 +181,14 @@
         </div>
 
         {{-- PAGINATION --}}
-        <div class="border-t border-slate-200/80 px-5 py-3 flex flex-col lg:flex-row items-center justify-between gap-3 mt-4">
-            <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                <span x-text="`Showing ${pageFrom}–${pageTo} of ${filteredCenters.length} centers`"></span>
-            </div>
-            <div class="flex items-center gap-1">
-                <button x-on:click="setPage(page - 1)" :disabled="page <= 1" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left text-[9px]"></i></button>
-                <template x-for="p in pageNumbers" :key="'cp'+p">
-                    <button x-on:click="setPage(p)" :class="page === p ? 'bg-cyan-600 text-white border-cyan-600' : 'text-slate-600 hover:bg-slate-100 border-slate-200'" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border" x-text="p"></button>
-                </template>
-                <button x-on:click="setPage(page + 1)" :disabled="page >= totalPages" class="w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right text-[9px]"></i></button>
-            </div>
-        </div>
+        <x-data-table-footer
+            showing="`Showing ${pageFrom}–${pageTo} of ${filteredCenters.length} centers`"
+            pageExpr="setPage(pg)"
+            activeExpr="pg === page"
+            prevClick="setPage(page - 1)"
+            nextClick="setPage(page + 1)"
+            keyPrefix="cp"
+        />
     </div>
     </div>
 
@@ -494,12 +490,17 @@
                 const start = (this.page - 1) * this.perPage;
                 return this.filteredCenters.slice(start, start + this.perPage);
             },
+            get allPageSelected() {
+                const pageIds = this.pagedCenters.map(c => c.id);
+                return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+            },
             toggleSelectAll() {
                 const pageIds = this.pagedCenters.map(c => c.id);
-                if (this.selectedIds.length === pageIds.length && pageIds.length > 0) {
-                    this.selectedIds = [];
+                const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                if (allOnPage) {
+                    this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
                 } else {
-                    this.selectedIds = [...pageIds];
+                    this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
                 }
             },
             setPage(p) {
@@ -566,25 +567,36 @@
             },
 
             async batchDelete() {
-                if (!confirm('Are you sure you want to delete ' + this.selectedIds.length + ' selected center(s)? This action cannot be undone.')) return;
-                if (this.saving) return;
-                this.saving = true;
-                try {
-                    const res = await fetch(batchDeleteUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
-                        body: JSON.stringify({ ids: this.selectedIds }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.message || 'Batch delete failed.');
-                    this.centers = this.centers.filter(c => !this.selectedIds.includes(c.id));
-                    this.selectedIds = [];
-                    this.flash(data.message || 'Selected centers deleted successfully.');
-                } catch (e) {
-                    this.flash(e.message, 'error');
-                } finally {
-                    this.saving = false;
-                }
+                const ids = [...this.selectedIds];
+                if (!ids.length) return;
+                const labels = this.filteredCenters.filter(c => ids.includes(c.id)).map(c => c.center_name);
+                window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                    detail: {
+                        title: 'Delete DTC Centers',
+                        count: ids.length,
+                        labels,
+                        onConfirm: async () => {
+                            if (this.saving) return;
+                            this.saving = true;
+                            try {
+                                const res = await fetch(batchDeleteUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                    body: JSON.stringify({ ids }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.message || 'Batch delete failed.');
+                                this.centers = this.centers.filter(c => !ids.includes(c.id));
+                                this.selectedIds = [];
+                                this.flash(data.message || 'Selected centers deleted successfully.');
+                            } catch (e) {
+                                this.flash(e.message, 'error');
+                            } finally {
+                                this.saving = false;
+                            }
+                        },
+                    },
+                }));
             },
 
             addCenter(center) {

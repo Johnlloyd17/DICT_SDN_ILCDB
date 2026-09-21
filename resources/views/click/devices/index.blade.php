@@ -12,9 +12,6 @@
             <p class="text-sm text-emerald-100 mt-1">Community Learning Innovation for ICT Knowledge - device deployment and beneficiary tracking across Surigao del Norte LGUs.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <button x-data x-on:click="$dispatch('open-modal', 'addDevice')" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3.5 py-2 rounded-lg text-xs font-bold flex items-center shadow transition">
-                <i class="fa-solid fa-hand-holding-hand mr-1.5"></i> Log Device Donation
-            </button>
             <a href="{{ route('export.csv', 'click-devices') }}" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center transition">
                 <i class="fa-solid fa-file-csv mr-2 text-emerald-300"></i> Export Donations
             </a>
@@ -103,9 +100,14 @@
 
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div>
-                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                    <i class="fa-solid fa-box-archive text-emerald-600"></i> PROJECT CLICK Device Donations Register
-                </h3>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-box-archive text-emerald-600"></i> PROJECT CLICK Device Donations Register
+                    </h3>
+                    <button x-show="selectedIds.length > 0" x-cloak x-on:click="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition inline-flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i> Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
+                </div>
                 <p class="text-xs text-slate-500">List of hardware equipment donated to schools, LGUs, and Tech4ED centers.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -119,6 +121,9 @@
                     <input x-model="search" type="text" placeholder="Search batches..."
                         class="w-full sm:w-48 text-xs p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
+                <button x-data x-on:click="$dispatch('open-modal', 'addDevice')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-[11px] font-bold transition inline-flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-hand-holding-hand"></i> Log Device Donation
+                </button>
             </div>
         </div>
 
@@ -126,6 +131,9 @@
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-800 text-white uppercase font-bold text-[11px] tracking-wider">
                     <tr>
+                        <th class="p-3 w-10">
+                            <input type="checkbox" :checked="allPageSelected" x-on:change="toggleSelectAll()" class="rounded text-emerald-700 focus:ring-emerald-500 cursor-pointer" title="Select All On This Page">
+                        </th>
                         <th class="p-3">Batch ID & Date</th>
                         <th class="p-3">Device Type & Model</th>
                         <th class="p-3 text-center">Quantity</th>
@@ -137,7 +145,10 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200 font-medium text-slate-700 bg-white">
                     <template x-for="d in pagedDevices" :key="d.id">
-                        <tr class="hover:bg-slate-50 transition">
+                        <tr class="hover:bg-slate-50 transition" :class="selectedIds.includes(d.id) ? 'bg-emerald-50/60' : ''">
+                            <td class="p-3">
+                                <input type="checkbox" :value="d.id" x-model.number="selectedIds" class="rounded text-emerald-700 focus:ring-emerald-500 cursor-pointer">
+                            </td>
                             <td class="p-3">
                                 <span class="font-mono font-bold text-emerald-900" x-text="d.batch_id"></span><br>
                                 <span class="text-[10px] text-slate-400 font-normal" x-text="d.donation_date ? new Date(d.donation_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''"></span>
@@ -165,30 +176,21 @@
                     </template>
                     <template x-if="pagedDevices.length === 0">
                         <tr>
-                            <td colspan="7" class="p-6 text-center text-slate-400 font-medium">No device donation records found.</td>
+                            <td colspan="8" class="p-6 text-center text-slate-400 font-medium">No device donation records found.</td>
                         </tr>
                     </template>
                 </tbody>
             </table>
         </div>
-        <div class="pt-2 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-2">
-            <span class="font-semibold text-slate-700">Showing <span x-text="filteredDevices.length"></span> device donation records</span>
-            <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1">
-                    <label class="text-[10px] text-slate-400 font-medium mr-1">Per page:</label>
-                    <template x-for="n in [5, 10, 15, 20, 50]" :key="n">
-                        <button x-on:click="perPage = n; page = 1" :class="perPage === n ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'" class="w-7 h-7 rounded-lg text-[11px] font-bold transition" x-text="n"></button>
-                    </template>
-                </div>
-                <div class="flex items-center gap-1">
-                    <button x-on:click="if (page > 1) page--" :disabled="page <= 1" class="px-2 py-1 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 disabled:opacity-40 text-[11px] font-bold">&laquo;</button>
-                    <template x-for="p in pageNumbers" :key="'cp'+p">
-                        <button x-on:click="page = p" :class="p === page ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'" class="w-7 h-7 rounded-lg text-[11px] font-bold transition" x-text="p"></button>
-                    </template>
-                    <button x-on:click="if (page < totalPages) page++" :disabled="page >= totalPages" class="px-2 py-1 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 disabled:opacity-40 text-[11px] font-bold">&raquo;</button>
-                </div>
-            </div>
-        </div>
+        <x-data-table-footer
+            showing="`Showing ${filteredDevices.length} device donation records`"
+            pageExpr="page = pg"
+            prevClick="page--"
+            nextClick="page++"
+            perPage="perPage"
+            :perPageOptions="[5, 10, 15, 20, 50]"
+            keyPrefix="cp"
+        />
     </div>
 
     {{-- ADD DEVICE MODAL --}}
@@ -325,6 +327,7 @@
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const storeUrl = '{{ route("click.devices.store") }}';
             const destroyUrl = '{{ route("click.devices.destroy", ["device" => "__ID__"]) }}';
+            const batchDeleteUrl = '{{ route("click.devices.batchDelete") }}';
             return {
                 devices: seed,
                 search: '',
@@ -334,9 +337,10 @@
                 noticeType: 'success',
                 page: 1,
                 perPage: 10,
+                selectedIds: [],
                 init() {
-                    this.$watch('search', () => this.page = 1);
-                    this.$watch('statusFilter', () => this.page = 1);
+                    this.$watch('search', () => { this.page = 1; this.selectedIds = []; });
+                    this.$watch('statusFilter', () => { this.page = 1; this.selectedIds = []; });
                     this.$watch('perPage', () => this.page = 1);
                 },
                 get filteredDevices() {
@@ -365,6 +369,19 @@
                     const start = (this.page - 1) * this.perPage;
                     return this.filteredDevices.slice(start, start + this.perPage);
                 },
+                get allPageSelected() {
+                    const pageIds = this.pagedDevices.map(d => d.id);
+                    return pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                },
+                toggleSelectAll() {
+                    const pageIds = this.pagedDevices.map(d => d.id);
+                    const allOnPage = pageIds.length > 0 && pageIds.every(id => this.selectedIds.includes(id));
+                    if (allOnPage) {
+                        this.selectedIds = this.selectedIds.filter(id => !pageIds.includes(id));
+                    } else {
+                        this.selectedIds = [...new Set([...this.selectedIds, ...pageIds])];
+                    }
+                },
                 flash(msg, type) { this.notice = msg; this.noticeType = type || 'success'; clearTimeout(this._t); this._t = setTimeout(() => this.notice = '', 4000); },
                 async addDevice(form) {
                     if (this.saving) return; this.saving = true;
@@ -387,8 +404,43 @@
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.message || 'Failed to delete.');
                         this.devices = this.devices.filter(x => x.id !== d.id);
+                        this.selectedIds = this.selectedIds.filter(id => id !== d.id);
                         this.flash('Device donation record deleted.');
                     } catch(e) { this.flash(e.message, 'error'); }
+                },
+
+                async batchDelete() {
+                    const ids = [...this.selectedIds];
+                    if (!ids.length) return;
+                    const labels = this.filteredDevices.filter(d => ids.includes(d.id)).map(d => d.batch_id + ' — ' + d.device_type);
+                    window.dispatchEvent(new CustomEvent('confirm-bulk-delete', {
+                        detail: {
+                            title: 'Delete Device Donation Records',
+                            count: ids.length,
+                            labels,
+                            onConfirm: async () => {
+                                if (this.saving) return;
+                                this.saving = true;
+                                try {
+                                    const res = await fetch(batchDeleteUrl, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                                        body: JSON.stringify({ ids }),
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.message || 'Batch delete failed.');
+                                    const skippedIds = (data.skipped || []).map(s => s.id);
+                                    this.devices = this.devices.filter(d => !ids.includes(d.id) || skippedIds.includes(d.id));
+                                    this.selectedIds = [];
+                                    this.flash(data.message || 'Selected records deleted.', (data.skipped || []).length ? 'error' : 'success');
+                                } catch (e) {
+                                    this.flash(e.message, 'error');
+                                } finally {
+                                    this.saving = false;
+                                }
+                            },
+                        },
+                    }));
                 },
             };
         }
