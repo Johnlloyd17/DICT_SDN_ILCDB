@@ -50,7 +50,7 @@ class DashboardController extends Controller
             ]);
 
         $calendarEvents = TrainingBatch::where('status', '!=', 'Completed')
-            ->get(['id', 'batch_code', 'course_title', 'start_date', 'end_date', 'program', 'status'])
+            ->get(['id', 'batch_code', 'course_title', 'venue', 'target_count', 'enrolled_count', 'trainer_name', 'start_date', 'end_date', 'program', 'status'])
             ->map(function ($batch) {
                 $colors = [
                     'TMD' => '#003366',
@@ -59,10 +59,23 @@ class DashboardController extends Controller
                 ];
 
                 return [
+                    'id' => $batch->id,
                     'title' => $batch->course_title,
                     'start' => $batch->start_date->format('Y-m-d'),
                     'end' => $batch->end_date->format('Y-m-d'),
                     'color' => $colors[$batch->program] ?? '#6366f1',
+                    'extendedProps' => [
+                        'course_title' => $batch->course_title,
+                        'batch_code' => $batch->batch_code,
+                        'venue' => $batch->venue,
+                        'target_count' => $batch->target_count,
+                        'enrolled_count' => $batch->enrolled_count,
+                        'trainer_name' => $batch->trainer_name,
+                        'start_date' => $batch->start_date->format('Y-m-d'),
+                        'end_date' => $batch->end_date->format('Y-m-d'),
+                        'program' => $batch->program,
+                        'status' => $batch->status,
+                    ],
                 ];
             });
 

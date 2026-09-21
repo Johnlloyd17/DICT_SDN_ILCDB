@@ -1,6 +1,6 @@
 <x-app-layout title="Main Overview">
     <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 mb-6">
-        <div class="flex items-center p-4 space-x-4 bg-white border shadow-sm rounded-xl border-slate-200">
+        <a href="{{ route('tmd.participants.index') }}" class="flex items-center p-4 space-x-4 transition bg-white border shadow-sm cursor-pointer hover:shadow-md rounded-xl border-slate-200 hover:border-blue-300">
             <div class="p-3 bg-blue-100 rounded-lg text-dict-blue">
                 <i class="text-xl fa-solid fa-users-viewfinder"></i>
             </div>
@@ -8,8 +8,8 @@
                 <p class="text-xs font-medium uppercase text-slate-500">Total Trainees</p>
                 <h3 class="text-2xl font-bold text-slate-800">{{ number_format($totalTrainees) }}</h3>
             </div>
-        </div>
-        <div class="flex items-center p-4 space-x-4 bg-white border shadow-sm rounded-xl border-slate-200">
+        </a>
+        <a href="{{ route('funding.index') }}" class="flex items-center p-4 space-x-4 transition bg-white border shadow-sm cursor-pointer hover:shadow-md rounded-xl border-slate-200 hover:border-emerald-300">
             <div class="p-3 rounded-lg bg-emerald-100 text-emerald-600">
                 <i class="text-xl fa-solid fa-coins"></i>
             </div>
@@ -17,8 +17,8 @@
                 <p class="text-xs font-medium uppercase text-slate-500">Total Allocated</p>
                 <h3 class="text-2xl font-bold text-dict-blue" id="stat-funding-allocated">₱{{ number_format($totalAllocated) }}</h3>
             </div>
-        </div>
-        <div class="flex items-center p-4 space-x-4 bg-white border shadow-sm rounded-xl border-slate-200">
+        </a>
+        <a href="{{ route('funding.index') }}" class="flex items-center p-4 space-x-4 transition bg-white border shadow-sm cursor-pointer hover:shadow-md rounded-xl border-slate-200 hover:border-amber-300">
             <div class="p-3 rounded-lg bg-amber-100 text-amber-600">
                 <i class="text-xl fa-solid fa-sack-dollar"></i>
             </div>
@@ -26,8 +26,8 @@
                 <p class="text-xs font-medium uppercase text-slate-500">Budget Disbursed</p>
                 <h3 class="text-2xl font-bold text-slate-800">₱{{ number_format($totalBudget) }}</h3>
             </div>
-        </div>
-        <div class="flex items-center p-4 space-x-4 bg-white border shadow-sm rounded-xl border-slate-200">
+        </a>
+        <a href="{{ route('dtc.visitors.index') }}" class="flex items-center p-4 space-x-4 transition bg-white border shadow-sm cursor-pointer hover:shadow-md rounded-xl border-slate-200 hover:border-cyan-300">
             <div class="p-3 rounded-lg bg-cyan-100 text-cyan-600">
                 <i class="text-xl fa-solid fa-person-walking"></i>
             </div>
@@ -35,8 +35,8 @@
                 <p class="text-xs font-medium uppercase text-slate-500">DTC Foot Traffic</p>
                 <h3 class="text-2xl font-bold text-slate-800">{{ number_format($totalFootTraffic) }}</h3>
             </div>
-        </div>
-        <div class="flex items-center p-4 space-x-4 bg-white border shadow-sm rounded-xl border-slate-200">
+        </a>
+        <a href="{{ route('click.devices.index') }}" class="flex items-center p-4 space-x-4 transition bg-white border shadow-sm cursor-pointer hover:shadow-md rounded-xl border-slate-200 hover:border-emerald-300">
             <div class="p-3 rounded-lg bg-emerald-100 text-emerald-600">
                 <i class="text-xl fa-solid fa-laptop-code"></i>
             </div>
@@ -44,7 +44,7 @@
                 <p class="text-xs font-medium uppercase text-slate-500">CLICK Beneficiaries</p>
                 <h3 class="text-2xl font-bold text-slate-800">{{ number_format($clickBeneficiaries) }}</h3>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-12">
@@ -243,6 +243,108 @@
         </div>
     </div>
 
+    {{-- ==================== EVENT DETAIL MODAL (READ-ONLY) ==================== --}}
+    <div x-data="{
+        show: false,
+        event: null,
+        get programLabel() {
+            const map = { TMD: 'DWIA-TMD', SPARK: 'SPARK', CLICK: 'PROJECT CLICK' };
+            return map[this.event?.extendedProps?.program] || this.event?.extendedProps?.program || '';
+        },
+        get programBadge() {
+            const map = {
+                TMD: 'bg-blue-100 text-blue-800',
+                SPARK: 'bg-amber-100 text-amber-800',
+                CLICK: 'bg-emerald-100 text-emerald-800'
+            };
+            return map[this.event?.extendedProps?.program] || 'bg-slate-100 text-slate-600';
+        },
+        get statusClass() {
+            const map = {
+                Upcoming: 'bg-amber-100 text-amber-700',
+                Ongoing: 'bg-blue-100 text-blue-700',
+                Completed: 'bg-emerald-100 text-emerald-700'
+            };
+            return map[this.event?.extendedProps?.status] || 'bg-slate-100 text-slate-600';
+        },
+        get hasParticipantCounts() {
+            const e = this.event?.extendedProps;
+            return !!e && typeof e.enrolled_count === 'number' && typeof e.target_count === 'number' && e.target_count > 0;
+        },
+        get utilizationClass() {
+            if (!this.hasParticipantCounts) return 'text-slate-400';
+            const e = this.event.extendedProps;
+            const pct = (e.enrolled_count / e.target_count) * 100;
+            return pct >= 100 ? 'text-emerald-600' : pct >= 50 ? 'text-blue-600' : 'text-amber-600';
+        },
+        get utilizationText() {
+            if (!this.hasParticipantCounts) return '';
+            const e = this.event.extendedProps;
+            return Math.round((e.enrolled_count / e.target_count) * 100) + '% utilization';
+        },
+        formatDate(d) {
+            if (!d) return '—';
+            const date = new Date(d + (d.length === 10 ? 'T00:00:00' : ''));
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+    }" x-on:open-event-detail.window="event = $event.detail; show = true" x-on:close-modal.window="show = false" x-on:keydown.escape.window="show = false" x-show="show" style="display: none;" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div x-show="show" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95" class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 text-white bg-blue-900 shrink-0">
+                <h3 class="flex items-center gap-2 font-bold"><i class="fa-solid fa-calendar-days text-amber-400"></i> Training / Event Details</h3>
+                <button x-on:click="show = false" class="text-white/60 hover:text-white"><i class="text-lg fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 min-h-0 p-6 space-y-4 overflow-y-auto text-xs custom-scrollbar">
+                <template x-if="event">
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="text-base font-bold text-slate-800" x-text="event.extendedProps?.course_title || event.title"></h4>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold" :class="programBadge">
+                                    <i class="fa-solid fa-layer-group"></i> <span x-text="programLabel"></span>
+                                </span>
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold" :class="statusClass" x-show="event.extendedProps?.status">
+                                    <i class="fa-solid fa-circle" style="font-size:6px"></i> <span x-text="event.extendedProps.status"></span>
+                                </span>
+                            </div>
+                        </div>
+                        <dl class="pt-4 space-y-3 border-t border-slate-100">
+                            <div class="flex items-start justify-between gap-4" x-show="event.extendedProps?.batch_code">
+                                <dt class="font-semibold text-slate-500 shrink-0">Batch Code</dt>
+                                <dd class="font-mono font-bold text-right text-slate-800" x-text="event.extendedProps.batch_code"></dd>
+                            </div>
+                            <div class="flex items-start justify-between gap-4">
+                                <dt class="font-semibold text-slate-500 shrink-0">Date Range</dt>
+                                <dd class="font-bold text-right text-slate-800">
+                                    <span x-text="formatDate(event.extendedProps?.start_date)"></span>
+                                    <template x-if="event.extendedProps?.end_date && event.extendedProps.end_date !== event.extendedProps.start_date">
+                                        <span> — <span x-text="formatDate(event.extendedProps.end_date)"></span></span>
+                                    </template>
+                                </dd>
+                            </div>
+                            <div class="flex items-start justify-between gap-4" x-show="event.extendedProps?.venue">
+                                <dt class="font-semibold text-slate-500 shrink-0">Venue / Location</dt>
+                                <dd class="font-bold text-right text-slate-800" x-text="event.extendedProps.venue"></dd>
+                            </div>
+                            <div class="flex items-start justify-between gap-4" x-show="event.extendedProps?.trainer_name">
+                                <dt class="font-semibold text-slate-500 shrink-0">Trainer / Resource Speaker</dt>
+                                <dd class="font-bold text-right text-slate-800" x-text="event.extendedProps.trainer_name"></dd>
+                            </div>
+                            <div class="flex items-start justify-between gap-4" x-show="hasParticipantCounts">
+                                <dt class="font-semibold text-slate-500 shrink-0">Participants</dt>
+                                <dd class="font-bold text-right text-slate-800">
+                                    <span x-text="event.extendedProps.enrolled_count + ' of ' + event.extendedProps.target_count + ' enrolled'"></span>
+                                    <span class="block font-semibold mt-0.5" :class="utilizationClass" x-text="utilizationText"></span>
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </template>
+            </div>
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 shrink-0">
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
@@ -299,7 +401,14 @@
                 initialView: 'dayGridMonth',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
                 events: @json($calendarEvents),
-                height: 340
+                height: 340,
+                eventClick: function(info) {
+                    info.jsEvent.preventDefault();
+                    window.dispatchEvent(new CustomEvent('open-event-detail', { detail: {
+                        title: info.event.title,
+                        extendedProps: info.event.extendedProps || {}
+                    } }));
+                }
             });
             calendar.render();
         }
